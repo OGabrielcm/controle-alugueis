@@ -15,6 +15,7 @@ Critério: usuário consegue separar rapidamente imóveis pagos, pendentes, em a
 ## Fase 2 — Modelo Supabase [HITL]
 Critério: schema SQL representa os campos da planilha sem perda óbvia.
 - [AFK] Criar `supabase/schema.sql`.
+- [AFK] Criar `supabase/seed.sql` com os 11 imóveis do CSV como base demo/desenvolvimento. **Concluído em 2026-06-04.**
 - [HITL] Validar nomes dos campos e tipos financeiros.
 
 ## Fase 2.5 — Repository Supabase com fallback [HITL]
