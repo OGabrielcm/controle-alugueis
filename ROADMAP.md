@@ -24,10 +24,16 @@ Critério: app carrega via uma camada de dados única e não quebra sem credenci
 - [AFK] Mostrar no dashboard se a fonte é `mock`, `supabase` ou `fallback`. **Concluído em 2026-06-04.**
 - [HITL] Quando houver projeto Supabase real, validar leitura da tabela `properties` com 2–3 imóveis.
 
-## Fase 3 — CRUD básico [HITL]
-Critério: usuário consegue criar/editar imóvel manualmente no app.
-- [AFK] Criar formulários e rotas.
-- [HITL] Validar fluxo com 2 imóveis reais.
+## Fase 3 — CRUD básico + navegação multipágina [HITL]
+Critério: usuário consegue criar/editar imóvel manualmente sem concentrar tudo em uma página só.
+- [AFK] Adotar base de design system open-source modular com componentes shadcn-style locais. **Concluído em 2026-06-04.**
+- [AFK] Criar app shell com navegação para resumo, imóveis, novo imóvel e importação. **Concluído em 2026-06-04.**
+- [AFK] Criar formulário local de novo imóvel com validação mínima. **Concluído em 2026-06-04.**
+- [AFK] Criar edição local de imóvel existente e atualização imediata dos indicadores. **Concluído em 2026-06-04.**
+- [AFK] Persistir rascunhos locais em `localStorage` e permitir descartar alterações não persistidas. **Concluído em 2026-06-04.**
+- [AFK] Acompanhamento: revisar vulnerabilidades moderadas reportadas pelo `npm audit` em dependências transitivas do Next/PostCSS antes de preparar deploy; não usar `npm audit fix --force` se ele sugerir downgrade inseguro do Next.
+- [HITL] Validar visualmente a navegação multipágina e o fluxo com 2 imóveis reais antes de persistir no Supabase.
+- [AFK] Futuro: persistir create/update no Supabase quando autenticação/policies forem definidas.
 
 ## Fase 4 — Status e alertas [HITL]
 Critério: app mostra pendências, dados incompletos e pontos de atenção por imóvel.
