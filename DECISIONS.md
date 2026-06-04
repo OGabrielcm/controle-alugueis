@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- Opção B para substituir PR de CRUD em página única
+
+O que mudou: em vez de mergear o PR #3 como estava, criei uma branch substituta com app shell, navegação multipágina, componentes UI shadcn-style locais e CRUD local distribuído entre resumo, carteira e novo imóvel.
+Por que: Mercês validou visualmente e disse que tudo em uma página só incomodou; isso é rejeição HITL estrutural de UX, não apenas polish.
+Alternativa descartada: mergear o PR #3 e corrigir depois; isso deixaria a `main` com uma experiência já rejeitada.
+Impacto: o app passa a ter rotas `/`, `/imoveis`, `/imoveis/novo` e `/importar`; rascunhos locais usam `localStorage` até a persistência Supabase ser definida com segurança.
+Como reverter: remover `AppShell`, `PropertyWorkspace`, rotas novas e componentes UI locais, restaurando `page.tsx` para renderizar `PropertyDashboard`.
+
 ## 2026-06-04 -- Seed SQL para base demo do Supabase
 
 O que mudou: adicionei `app/supabase/seed.sql` com os 11 imóveis do CSV de fevereiro/2023 e marquei todos como `source_is_outdated = true`.

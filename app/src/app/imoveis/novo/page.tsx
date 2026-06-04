@@ -4,12 +4,12 @@ import { hasSupabaseConfig } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function NewPropertyPage() {
   const { properties, dataSource } = await getProperties();
 
   return (
     <PropertyWorkspace
-      mode="overview"
+      mode="new"
       properties={properties}
       dataSource={dataSource}
       supabaseReady={hasSupabaseConfig()}
