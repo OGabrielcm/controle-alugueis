@@ -25,7 +25,7 @@ Campos:
 - `tenantName`: string opcional.
 - `contractEndDate`: `YYYY-MM-DD` opcional.
 - `paymentDueDate`: `YYYY-MM-DD` opcional.
-- `isCurrent`: boolean.
+- `isRentPaid`: boolean que representa se o aluguel da referência importada consta como pago.
 - `rentAmount`: number em reais.
 - `condoAmount`: number em reais.
 - `condoPaymentDate`: `YYYY-MM-DD` opcional.
@@ -46,6 +46,24 @@ Campos:
 
 ### Status da fonte de dados
 A planilha `Aluguéis Prédios - Fevereiro.csv` é referência de fevereiro/2023 e está desatualizada. Ela deve ser usada como base estrutural e mock inicial; o estado atual dos imóveis precisa ser validado manualmente antes de qualquer uso operacional.
+
+## Contratos derivados
+
+### `propertyExpenseTotal(property)`
+Calcula despesas atribuídas ao proprietário na referência importada. Inclui condomínio quando o cliente não paga, taxa extra quando o cliente não paga, imprevistos, manutenção quando o cliente não paga, IPTU quando o cliente não paga, taxa de lixo e laudêmio.
+
+### `summarizePortfolio(properties)`
+Agrega a carteira em indicadores de leitura rápida: receita prevista, receita recebida, receita pendente, condomínio total, despesas do proprietário, saldo estimado, contagem de revisões e alertas críticos.
+
+### `getPropertyAlerts(property)`
+Gera alertas por imóvel com severidade `info`, `warning` ou `danger`. Regras atuais:
+- Sem inquilino informado.
+- Sem data final de contrato.
+- Aluguel pendente na base.
+- Banco de recebimento não informado.
+- Manutenção alta a partir de R$ 1.000,00.
+- Imprevistos maiores que zero.
+- Calção/caução registrado.
 
 ## Invariantes
 - Valores monetários nunca podem ser negativos.

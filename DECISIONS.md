@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- Domínio financeiro e alertas iniciais no dashboard
+
+O que mudou: renomeei `isCurrent` para `isRentPaid`, adicionei funções de resumo financeiro, cálculo de despesas do proprietário, receita recebida/pendente e alertas por imóvel.
+Por que: Mercês pediu para executar as Etapas 1 e 2, focando evolução do projeto antes de Vercel/deploy.
+Alternativa descartada: conectar Supabase ou iniciar CRUD antes de estabilizar lógica de domínio e leitura rápida.
+Impacto: o dashboard mostra valor de negócio maior, mas as regras ainda são baseadas no CSV desatualizado e precisam validação HITL antes de uso operacional.
+Como reverter: voltar o commit desta alteração; a alteração principal está em `app/src/lib/rentals.ts`, `app/src/app/page.tsx`, `SDD.md` e `ROADMAP.md`.
+
 ## 2026-06-04 -- CSV de fevereiro recebido como base estrutural desatualizada
 
 O que mudou: substituí os mocks inferidos do screenshot por dados importados do CSV `Aluguéis Prédios - Fevereiro.csv`.

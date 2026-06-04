@@ -17,9 +17,10 @@ Critério: usuário consegue criar/editar imóvel manualmente no app.
 - [HITL] Validar fluxo com 2 imóveis reais.
 
 ## Fase 4 — Status e alertas [HITL]
-Critério: app mostra vencidos, em dia e contratos próximos do fim.
-- [AFK] Implementar regras de status.
-- [HITL] Validar datas reais e regras de cobrança.
+Critério: app mostra pendências, dados incompletos e pontos de atenção por imóvel.
+- [AFK] Implementar regras iniciais de status e alertas: aluguel pendente, dados incompletos, banco ausente, manutenção alta, imprevistos e caução. **Concluído em 2026-06-04.**
+- [HITL] Validar datas reais e regras de cobrança antes de tratar vencimento/contrato como operacional.
+- [AFK] Futuro: implementar alertas por contrato vencido/vence em 30 dias quando datas finais atuais existirem.
 
 ## Fase 5 — Importação de planilha [HITL]
 Critério: usuário envia CSV/XLSX e pré-visualiza os dados antes de importar.

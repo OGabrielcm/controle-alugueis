@@ -6,7 +6,7 @@ create table if not exists public.properties (
   tenant_name text,
   contract_end_date date,
   payment_due_date date,
-  is_current boolean not null default false,
+  is_rent_paid boolean not null default false,
   rent_amount numeric(12,2) not null default 0 check (rent_amount >= 0),
   condo_amount numeric(12,2) not null default 0 check (condo_amount >= 0),
   condo_payment_date date,
