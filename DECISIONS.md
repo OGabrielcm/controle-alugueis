@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- Dashboard operacional com filtros e prioridades
+
+O que mudou: extraí a UI principal para `PropertyDashboard`, adicionei filtros interativos de carteira e cards de prioridades do mês.
+Por que: Mercês pediu para executar a Etapa 3, focando evolução do produto antes de deploy/Vercel.
+Alternativa descartada: iniciar CRUD ou Supabase imediatamente; filtros/prioridades aumentam o valor da leitura sem depender de banco.
+Impacto: a home agora é parcialmente client-side para permitir filtros; os agrupamentos ainda refletem a base desatualizada de fevereiro/2023 e precisam validação HITL.
+Como reverter: voltar o commit desta alteração ou remover `src/components/property-dashboard.tsx` e restaurar `src/app/page.tsx` anterior.
+
 ## 2026-06-04 -- Domínio financeiro e alertas iniciais no dashboard
 
 O que mudou: renomeei `isCurrent` para `isRentPaid`, adicionei funções de resumo financeiro, cálculo de despesas do proprietário, receita recebida/pendente e alertas por imóvel.

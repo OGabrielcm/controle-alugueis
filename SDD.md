@@ -65,6 +65,15 @@ Gera alertas por imóvel com severidade `info`, `warning` ou `danger`. Regras at
 - Imprevistos maiores que zero.
 - Calção/caução registrado.
 
+### `filterProperties(properties, filter)`
+Filtra a carteira para leitura operacional no dashboard. Filtros suportados: `all`, `paid`, `pending`, `attention` e `review`.
+
+### `getPriorityGroups(properties)`
+Agrupa os imóveis em prioridades do mês: aluguéis pendentes, dados incompletos, despesas altas e ausência de banco de recebimento.
+
+### `PropertyDashboard`
+Componente client-side em `src/components/property-dashboard.tsx` responsável por filtros interativos, cards de prioridade, leitura rápida do filtro ativo e tabela operacional.
+
 ## Invariantes
 - Valores monetários nunca podem ser negativos.
 - Se `isRented = true`, deve haver `tenantName` ou pendência explícita.

@@ -359,6 +359,49 @@ export function primaryPropertyStatus(item: PropertyRecord) {
   return "Ok";
 }
 
+export type PortfolioFilter = "all" | "paid" | "pending" | "attention" | "review";
+
+export function filterProperties(items: PropertyRecord[], filter: PortfolioFilter) {
+  return items.filter((item) => {
+    const status = primaryPropertyStatus(item);
+
+    switch (filter) {
+      case "paid":
+        return item.isRentPaid;
+      case "pending":
+        return !item.isRentPaid;
+      case "attention":
+        return status === "Atenção";
+      case "review":
+        return status === "Revisar";
+      case "all":
+      default:
+        return true;
+    }
+  });
+}
+
+export function getFilterOptions(items: PropertyRecord[]) {
+  const options: Array<{ id: PortfolioFilter; label: string; count: number }> = [
+    { id: "all", label: "Todos", count: items.length },
+    { id: "paid", label: "Pagos", count: filterProperties(items, "paid").length },
+    { id: "pending", label: "Pendentes", count: filterProperties(items, "pending").length },
+    { id: "attention", label: "Atenção", count: filterProperties(items, "attention").length },
+    { id: "review", label: "Revisar", count: filterProperties(items, "review").length },
+  ];
+
+  return options;
+}
+
+export function getPriorityGroups(items: PropertyRecord[]) {
+  return {
+    pendingRent: items.filter((item) => item.isRented && !item.isRentPaid),
+    incompleteData: items.filter((item) => item.isRented && (!item.tenantName || !item.contractEndDate)),
+    highExpenses: items.filter((item) => propertyExpenseTotal(item) >= 1000),
+    missingBank: items.filter((item) => !item.receivingBank),
+  };
+}
+
 export function summarizePortfolio(items: PropertyRecord[]): PortfolioSummary {
   const alerts = items.flatMap(getPropertyAlerts);
   const grossRent = monthlyRevenue(items);

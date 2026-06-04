@@ -6,6 +6,12 @@ Critério: usuário abre a home e reconhece a planilha convertida em cards/tabel
 - [AFK] Criar dados mockados a partir da imagem.
 - [HITL] Validar se os campos e nomes refletem a planilha real.
 
+## Fase 1.5 — Dashboard operacional com filtros [HITL]
+Critério: usuário consegue separar rapidamente imóveis pagos, pendentes, em atenção e para revisão.
+- [AFK] Criar filtros interativos `Todos`, `Pagos`, `Pendentes`, `Atenção` e `Revisar`. **Concluído em 2026-06-04.**
+- [AFK] Criar seção `Prioridades do mês` com aluguéis pendentes, dados incompletos, despesas altas e imóveis sem banco. **Concluído em 2026-06-04.**
+- [HITL] Validar se esses agrupamentos batem com a forma real de gestão dos imóveis.
+
 ## Fase 2 — Modelo Supabase [HITL]
 Critério: schema SQL representa os campos da planilha sem perda óbvia.
 - [AFK] Criar `supabase/schema.sql`.
