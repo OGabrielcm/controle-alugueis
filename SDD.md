@@ -11,15 +11,18 @@ app/
 ├── src/app/importar/page.tsx     # placeholder para importação CSV/XLSX
 ├── src/app/globals.css           # tema visual
 ├── src/components/app-shell.tsx  # navegação lateral/topo responsiva
+├── src/components/contract-attachment-panel.tsx # upload de PDF por imóvel
 ├── src/components/property-workspace.tsx # workspace client-side por modo
 ├── src/components/ui/*           # componentes shadcn-style locais
 ├── src/lib/contract-agenda.ts    # regras de vencimento/reajuste contratual
+├── src/lib/contract-attachment.ts # validação/path/upload de PDF no Storage
 ├── src/lib/rentals.ts            # tipos, schema, dados iniciais e formatadores
 ├── src/lib/property-repository.ts # leitura Supabase com fallback mock
 ├── src/lib/supabase.ts           # cliente Supabase browser-safe
 ├── src/lib/utils.ts              # helper cn() para classes Tailwind
 ├── supabase/schema.sql           # schema inicial Postgres
 ├── supabase/seed.sql             # seed demo/desenvolvimento com CSV desatualizado
+├── supabase/storage.sql          # bucket de contratos no Supabase Storage
 ├── .env.example                  # variáveis esperadas
 └── README.md                     # setup local/deploy
 ```
@@ -91,6 +94,16 @@ Gera a agenda contratual exibida na home. Considera apenas imóveis alugados e c
 
 Os itens são ordenados por severidade, proximidade da data e nome do imóvel. A base mockada tende a gerar muitos itens de dados faltantes porque os contratos reais ainda não foram cadastrados.
 
+### `contract-attachment.ts`
+Define o bucket `property-contracts`, valida arquivos de contrato e gera paths seguros por imóvel.
+- Apenas PDF é aceito.
+- Limite: 10MB.
+- Path: `<property-id-normalizado>/<timestamp>-<nome-normalizado>.pdf`.
+- `uploadContractAttachment()` envia para o Supabase Storage e retorna URL pública do arquivo.
+
+### `ContractAttachmentPanel`
+Componente client-side usado na página de detalhe do imóvel. Permite selecionar PDF, validar localmente e enviar ao Storage quando Supabase está configurado. Como a escrita real de `properties.contract_url` ainda não existe, o link do upload é salvo como rascunho local no navegador por `propertyId`.
+
 ### `AppShell`
 Componente client-side em `src/components/app-shell.tsx` responsável pela navegação multipágina. Define as rotas principais: `/`, `/imoveis`, `/imoveis/novo` e `/importar`.
 
@@ -137,8 +150,10 @@ Tabela principal: `properties`.
 - A escrita/edição no banco ainda está fora desta etapa; o CRUD atual é rascunho local client-side para validar UX antes de persistir.
 - Campos do banco ficam em snake_case; campos do domínio ficam em camelCase.
 - `supabase/seed.sql` replica os 11 imóveis do CSV de fevereiro/2023 para ambiente demo/desenvolvimento.
+- `supabase/storage.sql` cria o bucket público `property-contracts` para PDFs de contrato com limite de 10MB.
 - O seed remove antes apenas registros com `source_label = 'Aluguéis Prédios - Fevereiro.csv'` e `source_reference_month = 'Fevereiro/2023'`, evitando duplicidade sem apagar outros dados.
 - Registros do seed entram com `source_is_outdated = true`; não usar como verdade operacional atual sem revisão manual.
+- Antes de produção, revisar RLS/policies do Storage; contratos reais podem conter dados sensíveis e provavelmente devem migrar para signed URLs privadas.
 
 ## Escopo negativo
 - Não implementar autenticação nesta primeira fatia.

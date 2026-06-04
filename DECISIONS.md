@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- Upload de contrato via Supabase Storage
+
+O que mudou: adicionei um painel de anexo na página de detalhe do imóvel, validação de PDF até 10MB, helper de upload para o bucket `property-contracts` e script `supabase/storage.sql`.
+Por que: o produto precisa começar a vincular contratos físicos/digitais aos imóveis antes de evoluir alertas, reajustes e persistência completa.
+Alternativa descartada: salvar apenas uma URL manual no formulário; isso não valida o fluxo real de anexo nem prepara o Storage.
+Impacto: com Supabase configurado, o usuário pode enviar o PDF para Storage. Como a escrita real de `properties.contract_url` ainda não está implementada, o link fica salvo como rascunho local no navegador.
+Como reverter: remover `contract-attachment.ts`, `contract-attachment-panel.tsx`, `contract-attachment.test.ts`, `supabase/storage.sql` e retirar o painel da rota `/imoveis/[id]`.
+
 ## 2026-06-04 -- Agenda contratual ativa no dashboard
 
 O que mudou: substituí o card conceitual de agenda futura por regras calculadas em `src/lib/contract-agenda.ts`, cobrindo contrato vencido/próximo, próximo reajuste anual e dados contratuais faltantes.

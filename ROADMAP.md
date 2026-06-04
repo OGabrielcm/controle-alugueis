@@ -39,6 +39,7 @@ Critério: usuário consegue criar/editar imóvel manualmente sem concentrar tud
 Critério: app mostra pendências, dados incompletos e pontos de atenção por imóvel.
 - [AFK] Implementar regras iniciais de status e alertas: aluguel pendente, dados incompletos, banco ausente, manutenção alta, imprevistos e caução. **Concluído em 2026-06-04.**
 - [AFK] Criar agenda contratual ativa com vencimentos, reajustes anuais e dados contratuais faltantes. **Concluído em 2026-06-04.**
+- [AFK] Preparar upload de PDF de contrato por imóvel via Supabase Storage. **Concluído em 2026-06-04.**
 - [HITL] Validar datas reais e regras de cobrança antes de tratar vencimento/contrato como operacional.
 - [AFK] Futuro: transformar a agenda contratual em notificações por e-mail quando houver persistência real e datas atuais.
 
