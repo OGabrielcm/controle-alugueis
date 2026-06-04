@@ -21,6 +21,7 @@ import {
   propertyExpenseTotal,
   summarizePortfolio,
 } from "@/lib/rentals";
+import { type ContractAgenda, buildContractAgenda, getTodayDateString } from "@/lib/contract-agenda";
 import {
   type PropertyDraft,
   draftFromProperty,
@@ -83,6 +84,11 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
   }, [hydrated, managedProperties]);
 
   const summary = useMemo(() => summarizePortfolio(managedProperties), [managedProperties]);
+  const agendaReferenceDate = useMemo(() => getTodayDateString(), []);
+  const contractAgenda = useMemo(
+    () => buildContractAgenda(managedProperties, agendaReferenceDate),
+    [managedProperties, agendaReferenceDate],
+  );
   const filterOptions = useMemo(() => getFilterOptions(managedProperties), [managedProperties]);
   const filteredProperties = useMemo(
     () => filterProperties(managedProperties, activeFilter),
@@ -149,7 +155,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       ) : null}
 
       {mode === "overview" ? (
-        <Overview summary={summary} priorities={priorities} />
+        <Overview summary={summary} priorities={priorities} contractAgenda={contractAgenda} />
       ) : null}
 
       {mode === "list" ? (
@@ -248,9 +254,11 @@ function PageHeader({
 function Overview({
   summary,
   priorities,
+  contractAgenda,
 }: {
   summary: ReturnType<typeof summarizePortfolio>;
   priorities: ReturnType<typeof getPriorityGroups>;
+  contractAgenda: ContractAgenda;
 }) {
   const stats = [
     { label: "Receita prevista", value: formatCurrency(summary.grossRent), hint: `${summary.propertyCount} imóveis mapeados` },
@@ -287,44 +295,87 @@ function Overview({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Agenda contratual futura</CardTitle>
-            <CardDescription>Alertas que devem nascer do contrato anexado ao imóvel.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-300/15 text-emerald-200">
-                  <FileText size={17} />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-white">Contratos por imóvel</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-400">
-                    Cada imóvel deve permitir anexar contrato e extrair datas importantes, como vencimento e reajuste anual.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 text-sm text-slate-300">
-              <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-white/10">
-                <p className="font-medium text-slate-100">Reajuste de aluguel</p>
-                <p className="mt-1 text-slate-500">Avisar quando houver cláusula anual próxima da data de reajuste.</p>
-              </div>
-              <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-white/10">
-                <p className="font-medium text-slate-100">Vencimento do contrato</p>
-                <p className="mt-1 text-slate-500">Destacar contratos próximos do fim para renovar ou negociar antes do prazo.</p>
-              </div>
-              <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-white/10">
-                <p className="font-medium text-slate-100">Avisos por e-mail</p>
-                <p className="mt-1 text-slate-500">Planejamento futuro: enviar lembretes automáticos sobre reajuste e vencimento.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <ContractAgendaCard agenda={contractAgenda} />
       </section>
     </>
+  );
+}
+
+function ContractAgendaCard({ agenda }: { agenda: ContractAgenda }) {
+  const featuredItems = agenda.items.slice(0, 5);
+  const hasItems = featuredItems.length > 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Agenda contratual ativa</CardTitle>
+        <CardDescription>Vencimentos, reajustes e dados faltantes calculados a partir dos contratos cadastrados.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <AgendaMetric label="Vencidos" value={agenda.summary.overdue} variant="danger" />
+          <AgendaMetric label="Próximos" value={agenda.summary.dueSoon} variant="warning" />
+          <AgendaMetric label="Dados faltantes" value={agenda.summary.missingData} variant="info" />
+        </div>
+
+        <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-300/15 text-emerald-200">
+              <FileText size={17} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-white">Próximas ações contratuais</p>
+              <p className="mt-1 text-sm leading-6 text-slate-400">
+                A agenda já cruza vencimento de contrato, data base anual de reajuste e cadastros incompletos.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {featuredItems.map((item) => (
+            <Link
+              key={item.id}
+              href={`/imoveis/${encodeURIComponent(item.propertyId)}`}
+              className="block rounded-2xl bg-slate-900/70 p-4 ring-1 ring-white/10 transition hover:bg-slate-900 hover:ring-emerald-300/30"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-100">{item.propertyName}</p>
+                <Badge variant={item.severity}>{item.title}</Badge>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{item.description}</p>
+              {item.daysUntil !== undefined ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  {item.daysUntil < 0 ? `${Math.abs(item.daysUntil)} dias em atraso` : `Faltam ${item.daysUntil} dias`}
+                </p>
+              ) : null}
+            </Link>
+          ))}
+
+          {!hasItems ? (
+            <div className="rounded-2xl bg-slate-900/70 p-4 text-sm text-slate-400 ring-1 ring-white/10">
+              Nenhuma ação contratual imediata. Cadastre datas de vencimento e reajuste para alimentar a agenda.
+            </div>
+          ) : null}
+
+          {agenda.items.length > featuredItems.length ? (
+            <p className="text-xs text-slate-500">+{agenda.items.length - featuredItems.length} outros pontos na carteira.</p>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AgendaMetric({ label, value, variant }: { label: string; value: number; variant: "danger" | "warning" | "info" }) {
+  return (
+    <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-white/10">
+      <p className="text-xs text-slate-500">{label}</p>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <p className="text-2xl font-semibold text-white">{value}</p>
+        <Badge variant={variant}>{value}</Badge>
+      </div>
+    </div>
   );
 }
 

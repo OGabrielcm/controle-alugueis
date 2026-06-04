@@ -13,6 +13,7 @@ app/
 ├── src/components/app-shell.tsx  # navegação lateral/topo responsiva
 ├── src/components/property-workspace.tsx # workspace client-side por modo
 ├── src/components/ui/*           # componentes shadcn-style locais
+├── src/lib/contract-agenda.ts    # regras de vencimento/reajuste contratual
 ├── src/lib/rentals.ts            # tipos, schema, dados iniciais e formatadores
 ├── src/lib/property-repository.ts # leitura Supabase com fallback mock
 ├── src/lib/supabase.ts           # cliente Supabase browser-safe
@@ -80,6 +81,15 @@ Filtra a carteira para leitura operacional no dashboard. Filtros suportados: `al
 
 ### `getPriorityGroups(properties)`
 Agrupa os imóveis em prioridades do mês: aluguéis pendentes, dados incompletos, despesas altas e ausência de banco de recebimento.
+
+### `buildContractAgenda(properties, referenceDate?)`
+Gera a agenda contratual exibida na home. Considera apenas imóveis alugados e cria itens para:
+- Contrato vencido ou próximo do vencimento em até 90 dias.
+- Reajuste anual vencido ou próximo em até 45 dias, calculando o próximo aniversário da `rentAdjustmentBaseDate`.
+- Imóvel alugado sem data final de contrato.
+- Imóvel alugado sem regra de reajuste anual ou sem data base quando a cláusula está ativa.
+
+Os itens são ordenados por severidade, proximidade da data e nome do imóvel. A base mockada tende a gerar muitos itens de dados faltantes porque os contratos reais ainda não foram cadastrados.
 
 ### `AppShell`
 Componente client-side em `src/components/app-shell.tsx` responsável pela navegação multipágina. Define as rotas principais: `/`, `/imoveis`, `/imoveis/novo` e `/importar`.
