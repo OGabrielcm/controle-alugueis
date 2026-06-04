@@ -11,6 +11,7 @@ app/
 ├── src/lib/property-repository.ts # leitura Supabase com fallback mock
 ├── src/lib/supabase.ts           # cliente Supabase browser-safe
 ├── supabase/schema.sql           # schema inicial Postgres
+├── supabase/seed.sql             # seed demo/desenvolvimento com CSV desatualizado
 ├── .env.example                  # variáveis esperadas
 └── README.md                     # setup local/deploy
 ```
@@ -99,6 +100,9 @@ Tabela principal: `properties`.
 - Erros de conexão, tabela vazia ou dados inválidos não quebram o dashboard: o app cai para mock local e mostra `fallback` na fonte de dados.
 - A escrita/edição ainda está fora desta etapa; CRUD fica para fase posterior.
 - Campos do banco ficam em snake_case; campos do domínio ficam em camelCase.
+- `supabase/seed.sql` replica os 11 imóveis do CSV de fevereiro/2023 para ambiente demo/desenvolvimento.
+- O seed remove antes apenas registros com `source_label = 'Aluguéis Prédios - Fevereiro.csv'` e `source_reference_month = 'Fevereiro/2023'`, evitando duplicidade sem apagar outros dados.
+- Registros do seed entram com `source_is_outdated = true`; não usar como verdade operacional atual sem revisão manual.
 
 ## Escopo negativo
 - Não implementar autenticação nesta primeira fatia.

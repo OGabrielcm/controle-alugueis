@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- Seed SQL para base demo do Supabase
+
+O que mudou: adicionei `app/supabase/seed.sql` com os 11 imóveis do CSV de fevereiro/2023 e marquei todos como `source_is_outdated = true`.
+Por que: preparar o caminho para testar Supabase real sem depender de digitação manual dos dados estruturais iniciais.
+Alternativa descartada: inserir dados automaticamente pela aplicação; isso misturaria bootstrap/demo com fluxo operacional.
+Impacto: o seed é útil para desenvolvimento e demonstração, mas não representa a situação atual dos imóveis.
+Como reverter: remover `app/supabase/seed.sql` ou rodar o `delete` filtrado por `source_label` e `source_reference_month` presente no próprio arquivo.
+
 ## 2026-06-04 -- Repository Supabase com fallback mock
 
 O que mudou: criei `src/lib/property-repository.ts`, transformei `page.tsx` em server component async e passei a enviar `dataSource` para o dashboard.
