@@ -31,6 +31,7 @@ Critério: usuário consegue criar/editar imóvel manualmente sem concentrar tud
 - [AFK] Criar formulário local de novo imóvel com validação mínima. **Concluído em 2026-06-04.**
 - [AFK] Criar edição local de imóvel existente e atualização imediata dos indicadores. **Concluído em 2026-06-04.**
 - [AFK] Persistir rascunhos locais em `localStorage` e permitir descartar alterações não persistidas. **Concluído em 2026-06-04.**
+- [AFK] Acompanhamento: revisar vulnerabilidades moderadas reportadas pelo `npm audit` em dependências transitivas do Next/PostCSS antes de preparar deploy; não usar `npm audit fix --force` se ele sugerir downgrade inseguro do Next.
 - [HITL] Validar visualmente a navegação multipágina e o fluxo com 2 imóveis reais antes de persistir no Supabase.
 - [AFK] Futuro: persistir create/update no Supabase quando autenticação/policies forem definidas.
 
