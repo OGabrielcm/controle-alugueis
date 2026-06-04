@@ -12,9 +12,9 @@ import {
   getPriorityGroups,
   primaryPropertyStatus,
   propertyExpenseTotal,
-  sourceData,
   summarizePortfolio,
 } from "@/lib/rentals";
+import type { PropertyDataSource } from "@/lib/property-repository";
 
 const alertStyles = {
   info: "bg-cyan-400/10 text-cyan-100 ring-cyan-300/20",
@@ -30,10 +30,11 @@ const statusStyles = {
 
 type PropertyDashboardProps = {
   properties: PropertyRecord[];
+  dataSource: PropertyDataSource;
   supabaseReady: boolean;
 };
 
-export function PropertyDashboard({ properties, supabaseReady }: PropertyDashboardProps) {
+export function PropertyDashboard({ properties, dataSource, supabaseReady }: PropertyDashboardProps) {
   const [activeFilter, setActiveFilter] = useState<PortfolioFilter>("all");
 
   const summary = useMemo(() => summarizePortfolio(properties), [properties]);
@@ -110,13 +111,20 @@ export function PropertyDashboard({ properties, supabaseReady }: PropertyDashboa
         </div>
 
         <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-50">
-          <p className="font-semibold">Base de dados: {sourceData.label}</p>
-          <p className="mt-1 text-sm text-amber-100/80">
-            Referência {sourceData.referenceMonth} — {sourceData.status}. {sourceData.note}
-          </p>
-          <p className="mt-2 text-sm text-amber-100/80">
-            Esta etapa adicionou filtros e uma seção de prioridades para leitura operacional rápida.
-          </p>
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="font-semibold">Base de dados: {dataSource.label}</p>
+              <p className="mt-1 text-sm text-amber-100/80">
+                Referência {dataSource.referenceMonth} — {dataSource.status}. {dataSource.note}
+              </p>
+              <p className="mt-2 text-sm text-amber-100/80">
+                Esta etapa adicionou uma camada de repository: Supabase quando configurado, mock local como fallback.
+              </p>
+            </div>
+            <span className="w-fit rounded-full bg-slate-950/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-100 ring-1 ring-amber-100/20">
+              {dataSource.status}
+            </span>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

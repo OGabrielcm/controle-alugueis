@@ -17,6 +17,12 @@ Critério: schema SQL representa os campos da planilha sem perda óbvia.
 - [AFK] Criar `supabase/schema.sql`.
 - [HITL] Validar nomes dos campos e tipos financeiros.
 
+## Fase 2.5 — Repository Supabase com fallback [HITL]
+Critério: app carrega via uma camada de dados única e não quebra sem credenciais Supabase.
+- [AFK] Criar `property-repository.ts` com leitura Supabase e fallback mock. **Concluído em 2026-06-04.**
+- [AFK] Mostrar no dashboard se a fonte é `mock`, `supabase` ou `fallback`. **Concluído em 2026-06-04.**
+- [HITL] Quando houver projeto Supabase real, validar leitura da tabela `properties` com 2–3 imóveis.
+
 ## Fase 3 — CRUD básico [HITL]
 Critério: usuário consegue criar/editar imóvel manualmente no app.
 - [AFK] Criar formulários e rotas.

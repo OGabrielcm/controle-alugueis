@@ -4,9 +4,11 @@
 
 ```text
 app/
-├── src/app/page.tsx              # dashboard inicial
+├── src/app/page.tsx              # server component fino que carrega dados
 ├── src/app/globals.css           # tema visual
+├── src/components/property-dashboard.tsx # dashboard client-side com filtros
 ├── src/lib/rentals.ts            # tipos, schema, dados iniciais e formatadores
+├── src/lib/property-repository.ts # leitura Supabase com fallback mock
 ├── src/lib/supabase.ts           # cliente Supabase browser-safe
 ├── supabase/schema.sql           # schema inicial Postgres
 ├── .env.example                  # variáveis esperadas
@@ -74,6 +76,15 @@ Agrupa os imóveis em prioridades do mês: aluguéis pendentes, dados incompleto
 ### `PropertyDashboard`
 Componente client-side em `src/components/property-dashboard.tsx` responsável por filtros interativos, cards de prioridade, leitura rápida do filtro ativo e tabela operacional.
 
+### `getProperties()`
+Camada repository em `src/lib/property-repository.ts`. Retorna `{ properties, dataSource }`.
+- Sem variáveis Supabase: retorna mock local e `dataSource.status = mock`.
+- Com Supabase configurado: lê `public.properties`, mapeia snake_case para `PropertyRecord` e valida com `propertySchema`.
+- Se Supabase falhar, estiver vazio ou retornar dado inválido: retorna mock local e `dataSource.status = fallback` com motivo no `note`.
+
+### `PropertyDataSource`
+Metadado exibido no dashboard para o usuário saber se está vendo mock local, dados do Supabase ou fallback por erro. Nunca esconder que o CSV base está desatualizado.
+
 ## Invariantes
 - Valores monetários nunca podem ser negativos.
 - Se `isRented = true`, deve haver `tenantName` ou pendência explícita.
@@ -83,8 +94,11 @@ Componente client-side em `src/components/property-dashboard.tsx` responsável p
 
 ## Contrato com Supabase
 Tabela principal: `properties`.
-- O app deve funcionar com dados mockados se as variáveis Supabase não estiverem configuradas.
-- Quando configurado, futuras rotas podem ler/escrever no Supabase usando as mesmas chaves do domínio.
+- O app funciona com dados mockados se as variáveis Supabase não estiverem configuradas.
+- Quando configurado, `getProperties()` lê `public.properties` em tempo de execução e mantém a UI usando o mesmo contrato `PropertyRecord`.
+- Erros de conexão, tabela vazia ou dados inválidos não quebram o dashboard: o app cai para mock local e mostra `fallback` na fonte de dados.
+- A escrita/edição ainda está fora desta etapa; CRUD fica para fase posterior.
+- Campos do banco ficam em snake_case; campos do domínio ficam em camelCase.
 
 ## Escopo negativo
 - Não implementar autenticação nesta primeira fatia.

@@ -1,7 +1,17 @@
 import { PropertyDashboard } from "@/components/property-dashboard";
-import { properties } from "@/lib/rentals";
+import { getProperties } from "@/lib/property-repository";
 import { hasSupabaseConfig } from "@/lib/supabase";
 
-export default function Home() {
-  return <PropertyDashboard properties={properties} supabaseReady={hasSupabaseConfig()} />;
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const { properties, dataSource } = await getProperties();
+
+  return (
+    <PropertyDashboard
+      properties={properties}
+      dataSource={dataSource}
+      supabaseReady={hasSupabaseConfig()}
+    />
+  );
 }
