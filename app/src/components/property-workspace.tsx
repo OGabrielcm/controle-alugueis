@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, RotateCcw } from "lucide-react";
+import { FileText, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -207,7 +207,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       ) : null}
 
       {mode === "overview" ? (
-        <Overview summary={summary} priorities={priorities} properties={managedProperties} />
+        <Overview summary={summary} priorities={priorities} />
       ) : null}
 
       {mode === "list" ? (
@@ -306,11 +306,9 @@ function PageHeader({
 function Overview({
   summary,
   priorities,
-  properties,
 }: {
   summary: ReturnType<typeof summarizePortfolio>;
   priorities: ReturnType<typeof getPriorityGroups>;
-  properties: PropertyRecord[];
 }) {
   const stats = [
     { label: "Receita prevista", value: formatCurrency(summary.grossRent), hint: `${summary.propertyCount} imóveis mapeados` },
@@ -349,13 +347,38 @@ function Overview({
 
         <Card>
           <CardHeader>
-            <CardTitle>Próximas ações</CardTitle>
-            <CardDescription>Fluxo mais limpo após a separação em páginas.</CardDescription>
+            <CardTitle>Agenda contratual futura</CardTitle>
+            <CardDescription>Alertas que devem nascer do contrato anexado ao imóvel.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <ActionLink href="/imoveis" title="Revisar carteira" description={`${properties.length} imóveis disponíveis na listagem completa`} />
-            <ActionLink href="/imoveis/novo" title="Cadastrar imóvel" description="Testar o fluxo sem poluir a home" />
-            <ActionLink href="/importar" title="Preparar importação" description="CSV/XLSX entra depois da validação dos campos" />
+          <CardContent className="space-y-4">
+            <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.06] p-4">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-300/15 text-emerald-200">
+                  <FileText size={17} />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-white">Contratos por imóvel</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-400">
+                    Cada imóvel deve permitir anexar contrato e extrair datas importantes, como vencimento e reajuste anual.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 text-sm text-slate-300">
+              <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-white/10">
+                <p className="font-medium text-slate-100">Reajuste de aluguel</p>
+                <p className="mt-1 text-slate-500">Avisar quando houver cláusula anual próxima da data de reajuste.</p>
+              </div>
+              <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-white/10">
+                <p className="font-medium text-slate-100">Vencimento do contrato</p>
+                <p className="mt-1 text-slate-500">Destacar contratos próximos do fim para renovar ou negociar antes do prazo.</p>
+              </div>
+              <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-white/10">
+                <p className="font-medium text-slate-100">Avisos por e-mail</p>
+                <p className="mt-1 text-slate-500">Planejamento futuro: enviar lembretes automáticos sobre reajuste e vencimento.</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -555,14 +578,3 @@ function PriorityBlock({ label, items, variant }: { label: string; items: Proper
   );
 }
 
-function ActionLink({ href, title, description }: { href: string; title: string; description: string }) {
-  return (
-    <ButtonLink href={href} variant="secondary" className="h-auto w-full justify-between gap-4 p-4 text-left">
-      <span>
-        <span className="block text-sm text-white">{title}</span>
-        <span className="mt-1 block text-xs font-normal text-slate-500">{description}</span>
-      </span>
-      <ArrowRight size={16} />
-    </ButtonLink>
-  );
-}

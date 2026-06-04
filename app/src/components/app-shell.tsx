@@ -40,9 +40,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition",
+                    "flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
                     active
-                      ? "bg-white text-slate-950 shadow-sm"
+                      ? "border border-emerald-300/25 bg-emerald-300/[0.12] text-emerald-50 shadow-sm shadow-emerald-950/20"
                       : "text-slate-400 hover:bg-white/5 hover:text-slate-100",
                   )}
                 >
