@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- Agenda contratual ativa no dashboard
+
+O que mudou: substituí o card conceitual de agenda futura por regras calculadas em `src/lib/contract-agenda.ts`, cobrindo contrato vencido/próximo, próximo reajuste anual e dados contratuais faltantes.
+Por que: Mercês quer que o produto evolua para governança real de contratos, reajustes anuais e vencimentos antes de deploy/polimento.
+Alternativa descartada: manter apenas textos explicativos no dashboard; isso não gera ação prática nem valida as regras de negócio.
+Impacto: a home mostra métricas e links para imóveis com pendências contratuais. Como a base mockada está incompleta/desatualizada, a agenda destaca muitos dados faltantes até os contratos reais serem cadastrados.
+Como reverter: remover `contract-agenda.ts`, `contract-agenda.test.ts` e restaurar o bloco estático de agenda em `PropertyWorkspace`.
+
 ## 2026-06-04 -- Opção B para substituir PR de CRUD em página única
 
 O que mudou: em vez de mergear o PR #3 como estava, criei uma branch substituta com app shell, navegação multipágina, componentes UI shadcn-style locais e CRUD local distribuído entre resumo, carteira e novo imóvel.
