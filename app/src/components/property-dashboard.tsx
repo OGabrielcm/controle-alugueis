@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import {
   type PortfolioFilter,
@@ -34,17 +35,140 @@ type PropertyDashboardProps = {
   supabaseReady: boolean;
 };
 
-export function PropertyDashboard({ properties, dataSource, supabaseReady }: PropertyDashboardProps) {
-  const [activeFilter, setActiveFilter] = useState<PortfolioFilter>("all");
+type PropertyDraft = {
+  id?: string;
+  buildingName: string;
+  tenantName: string;
+  paymentDueDate: string;
+  rentAmount: string;
+  receivingBank: string;
+  isRented: boolean;
+  isRentPaid: boolean;
+};
 
-  const summary = useMemo(() => summarizePortfolio(properties), [properties]);
-  const filterOptions = useMemo(() => getFilterOptions(properties), [properties]);
+const emptyDraft: PropertyDraft = {
+  buildingName: "",
+  tenantName: "",
+  paymentDueDate: "",
+  rentAmount: "0",
+  receivingBank: "",
+  isRented: true,
+  isRentPaid: false,
+};
+
+function draftFromProperty(property: PropertyRecord): PropertyDraft {
+  return {
+    id: property.id,
+    buildingName: property.buildingName,
+    tenantName: property.tenantName ?? "",
+    paymentDueDate: property.paymentDueDate ?? "",
+    rentAmount: property.rentAmount.toString(),
+    receivingBank: property.receivingBank ?? "",
+    isRented: property.isRented,
+    isRentPaid: property.isRentPaid,
+  };
+}
+
+function propertyFromDraft(draft: PropertyDraft, current?: PropertyRecord): PropertyRecord {
+  const rentAmount = Number(draft.rentAmount.replace(",", "."));
+
+  return {
+    id: current?.id ?? draft.id ?? `local-${Date.now()}`,
+    buildingName: draft.buildingName.trim(),
+    isRented: draft.isRented,
+    tenantName: draft.tenantName.trim() || undefined,
+    contractEndDate: current?.contractEndDate,
+    paymentDueDate: draft.paymentDueDate || undefined,
+    isRentPaid: draft.isRentPaid,
+    rentAmount,
+    condoAmount: current?.condoAmount ?? 0,
+    condoPaymentDate: current?.condoPaymentDate,
+    condoPaidByTenant: current?.condoPaidByTenant ?? false,
+    extraFeeAmount: current?.extraFeeAmount,
+    extraFeePaidByTenant: current?.extraFeePaidByTenant ?? false,
+    unexpectedCostsAmount: current?.unexpectedCostsAmount,
+    unexpectedCostsNotes: current?.unexpectedCostsNotes,
+    maintenanceAmount: current?.maintenanceAmount,
+    maintenancePaidByTenant: current?.maintenancePaidByTenant ?? false,
+    iptuAmount: current?.iptuAmount,
+    iptuPaidByTenant: current?.iptuPaidByTenant ?? false,
+    garbageFeeAmount: current?.garbageFeeAmount,
+    laudemioAmount: current?.laudemioAmount,
+    contractUrl: current?.contractUrl,
+    receivingBank: draft.receivingBank.trim() || undefined,
+    hasRentDeposit: current?.hasRentDeposit ?? false,
+  };
+}
+
+export function PropertyDashboard({ properties, dataSource, supabaseReady }: PropertyDashboardProps) {
+  const [managedProperties, setManagedProperties] = useState<PropertyRecord[]>(() => properties);
+  const [activeFilter, setActiveFilter] = useState<PortfolioFilter>("all");
+  const [draft, setDraft] = useState<PropertyDraft | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const hasLocalChanges = managedProperties !== properties;
+  const summary = useMemo(() => summarizePortfolio(managedProperties), [managedProperties]);
+  const filterOptions = useMemo(() => getFilterOptions(managedProperties), [managedProperties]);
   const filteredProperties = useMemo(
-    () => filterProperties(properties, activeFilter),
-    [properties, activeFilter],
+    () => filterProperties(managedProperties, activeFilter),
+    [managedProperties, activeFilter],
   );
   const filteredSummary = useMemo(() => summarizePortfolio(filteredProperties), [filteredProperties]);
-  const priorities = useMemo(() => getPriorityGroups(properties), [properties]);
+  const priorities = useMemo(() => getPriorityGroups(managedProperties), [managedProperties]);
+
+  function openNewPropertyForm() {
+    setDraft(emptyDraft);
+    setFormError(null);
+  }
+
+  function openEditPropertyForm(property: PropertyRecord) {
+    setDraft(draftFromProperty(property));
+    setFormError(null);
+  }
+
+  function cancelDraft() {
+    setDraft(null);
+    setFormError(null);
+  }
+
+  function resetLocalChanges() {
+    setManagedProperties(properties);
+    setDraft(null);
+    setFormError(null);
+    setActiveFilter("all");
+  }
+
+  function saveDraft() {
+    if (!draft) return;
+
+    const buildingName = draft.buildingName.trim();
+    const rentAmount = Number(draft.rentAmount.replace(",", "."));
+
+    if (!buildingName) {
+      setFormError("Informe o nome do imóvel.");
+      return;
+    }
+
+    if (!Number.isFinite(rentAmount) || rentAmount < 0) {
+      setFormError("Informe um aluguel válido maior ou igual a zero.");
+      return;
+    }
+
+    setManagedProperties((currentProperties) => {
+      const current = draft.id ? currentProperties.find((property) => property.id === draft.id) : undefined;
+      const saved = propertyFromDraft(draft, current);
+
+      if (!current) {
+        return [saved, ...currentProperties];
+      }
+
+      return currentProperties.map((property) => (property.id === saved.id ? saved : property));
+    });
+
+    setDraft(null);
+    setFormError(null);
+    setActiveFilter("all");
+  }
 
   const stats = [
     {
@@ -118,12 +242,19 @@ export function PropertyDashboard({ properties, dataSource, supabaseReady }: Pro
                 Referência {dataSource.referenceMonth} — {dataSource.status}. {dataSource.note}
               </p>
               <p className="mt-2 text-sm text-amber-100/80">
-                Esta etapa adicionou uma camada de repository: Supabase quando configurado, mock local como fallback.
+                Esta etapa adicionou cadastro e edição local para validar o fluxo antes de persistir no Supabase.
               </p>
             </div>
-            <span className="w-fit rounded-full bg-slate-950/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-100 ring-1 ring-amber-100/20">
-              {dataSource.status}
-            </span>
+            <div className="flex flex-wrap gap-2">
+              <span className="w-fit rounded-full bg-slate-950/40 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-100 ring-1 ring-amber-100/20">
+                {dataSource.status}
+              </span>
+              {hasLocalChanges ? (
+                <span className="w-fit rounded-full bg-cyan-300/20 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cyan-50 ring-1 ring-cyan-100/20">
+                  rascunho local
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -194,10 +325,35 @@ export function PropertyDashboard({ properties, dataSource, supabaseReady }: Pro
                 Use os filtros para separar pagos, pendentes e imóveis que precisam atenção.
               </p>
             </div>
-            <button className="w-fit rounded-xl bg-cyan-300 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-200">
-              Novo imóvel
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {hasLocalChanges ? (
+                <button
+                  type="button"
+                  onClick={resetLocalChanges}
+                  className="w-fit rounded-xl bg-slate-800 px-4 py-2 font-semibold text-slate-200 ring-1 ring-white/10 transition hover:bg-slate-700"
+                >
+                  Descartar rascunhos
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={openNewPropertyForm}
+                className="w-fit rounded-xl bg-cyan-300 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-200"
+              >
+                Novo imóvel
+              </button>
+            </div>
           </div>
+
+          {draft ? (
+            <PropertyForm
+              draft={draft}
+              formError={formError}
+              onCancel={cancelDraft}
+              onChange={setDraft}
+              onSave={saveDraft}
+            />
+          ) : null}
 
           <div className="mb-4 flex flex-wrap gap-2 px-2">
             {filterOptions.map((option) => {
@@ -220,7 +376,7 @@ export function PropertyDashboard({ properties, dataSource, supabaseReady }: Pro
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1280px] border-separate border-spacing-y-2 text-left text-sm">
+            <table className="w-full min-w-[1380px] border-separate border-spacing-y-2 text-left text-sm">
               <thead className="text-slate-400">
                 <tr>
                   <th className="px-4 py-2">Imóvel</th>
@@ -231,6 +387,7 @@ export function PropertyDashboard({ properties, dataSource, supabaseReady }: Pro
                   <th className="px-4 py-2">Banco</th>
                   <th className="px-4 py-2">Alertas</th>
                   <th className="px-4 py-2">Status</th>
+                  <th className="px-4 py-2">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -271,10 +428,19 @@ export function PropertyDashboard({ properties, dataSource, supabaseReady }: Pro
                           ) : null}
                         </div>
                       </td>
-                      <td className="rounded-r-2xl px-4 py-4">
+                      <td className="px-4 py-4">
                         <span className={`rounded-full px-3 py-1 ring-1 ${statusStyles[status]}`}>
                           {status}
                         </span>
+                      </td>
+                      <td className="rounded-r-2xl px-4 py-4">
+                        <button
+                          type="button"
+                          onClick={() => openEditPropertyForm(property)}
+                          className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-cyan-100 ring-1 ring-white/10 transition hover:bg-white/15"
+                        >
+                          Editar
+                        </button>
                       </td>
                     </tr>
                   );
@@ -285,6 +451,129 @@ export function PropertyDashboard({ properties, dataSource, supabaseReady }: Pro
         </section>
       </section>
     </main>
+  );
+}
+
+function PropertyForm({
+  draft,
+  formError,
+  onCancel,
+  onChange,
+  onSave,
+}: {
+  draft: PropertyDraft;
+  formError: string | null;
+  onCancel: () => void;
+  onChange: (draft: PropertyDraft) => void;
+  onSave: () => void;
+}) {
+  const mode = draft.id ? "Editar imóvel" : "Novo imóvel";
+
+  return (
+    <div className="mb-5 rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-5">
+      <div className="mb-4 flex flex-col gap-1">
+        <h3 className="text-lg font-semibold text-cyan-50">{mode}</h3>
+        <p className="text-sm text-cyan-100/70">
+          Alterações ficam em rascunho local nesta etapa; persistência Supabase entra depois da validação do fluxo.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <FormField label="Imóvel">
+          <input
+            value={draft.buildingName}
+            onChange={(event) => onChange({ ...draft, buildingName: event.target.value })}
+            className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-cyan-300/30 focus:ring-2"
+            placeholder="Ex.: Apt. Demo 101"
+          />
+        </FormField>
+
+        <FormField label="Inquilino">
+          <input
+            value={draft.tenantName}
+            onChange={(event) => onChange({ ...draft, tenantName: event.target.value })}
+            className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-cyan-300/30 focus:ring-2"
+            placeholder="Opcional"
+          />
+        </FormField>
+
+        <FormField label="Vencimento">
+          <input
+            type="date"
+            value={draft.paymentDueDate}
+            onChange={(event) => onChange({ ...draft, paymentDueDate: event.target.value })}
+            className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-cyan-300/30 focus:ring-2"
+          />
+        </FormField>
+
+        <FormField label="Aluguel">
+          <input
+            inputMode="decimal"
+            value={draft.rentAmount}
+            onChange={(event) => onChange({ ...draft, rentAmount: event.target.value })}
+            className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-cyan-300/30 focus:ring-2"
+            placeholder="0,00"
+          />
+        </FormField>
+
+        <FormField label="Banco de recebimento">
+          <input
+            value={draft.receivingBank}
+            onChange={(event) => onChange({ ...draft, receivingBank: event.target.value })}
+            className="w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-slate-100 outline-none ring-cyan-300/30 focus:ring-2"
+            placeholder="Ex.: Nubank"
+          />
+        </FormField>
+
+        <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={draft.isRented}
+            onChange={(event) => onChange({ ...draft, isRented: event.target.checked })}
+            className="size-4 accent-cyan-300"
+          />
+          Está alugado
+        </label>
+
+        <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={draft.isRentPaid}
+            onChange={(event) => onChange({ ...draft, isRentPaid: event.target.checked })}
+            className="size-4 accent-cyan-300"
+          />
+          Aluguel pago
+        </label>
+      </div>
+
+      {formError ? <p className="mt-4 text-sm text-red-200">{formError}</p> : null}
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={onSave}
+          className="rounded-xl bg-cyan-300 px-4 py-2 font-semibold text-slate-950 transition hover:bg-cyan-200"
+        >
+          Salvar rascunho
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl bg-slate-900 px-4 py-2 font-semibold text-slate-200 ring-1 ring-white/10 transition hover:bg-slate-800"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FormField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-2 text-sm text-slate-300">
+      <span>{label}</span>
+      {children}
+    </label>
   );
 }
 

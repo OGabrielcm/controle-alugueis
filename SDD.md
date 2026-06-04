@@ -75,7 +75,16 @@ Filtra a carteira para leitura operacional no dashboard. Filtros suportados: `al
 Agrupa os imóveis em prioridades do mês: aluguéis pendentes, dados incompletos, despesas altas e ausência de banco de recebimento.
 
 ### `PropertyDashboard`
-Componente client-side em `src/components/property-dashboard.tsx` responsável por filtros interativos, cards de prioridade, leitura rápida do filtro ativo e tabela operacional.
+Componente client-side em `src/components/property-dashboard.tsx` responsável por filtros interativos, cards de prioridade, leitura rápida do filtro ativo, tabela operacional e CRUD local em rascunho.
+
+### CRUD local de imóveis
+A fase atual permite criar e editar imóveis no estado client-side do dashboard, sem persistir no Supabase.
+- Campos editáveis nesta fatia: imóvel, inquilino, vencimento, aluguel, banco, alugado e aluguel pago.
+- Novos imóveis recebem `id` local com prefixo `local-`.
+- Campos financeiros aceitam vírgula ou ponto e precisam ser maiores ou iguais a zero.
+- Alterações atualizam cards, filtros, prioridades e tabela imediatamente.
+- A UI exibe `rascunho local` quando há alteração não persistida e permite descartar rascunhos voltando para os dados carregados pelo repository.
+- Campos fora do formulário preservam o valor atual ao editar e usam defaults seguros ao criar.
 
 ### `getProperties()`
 Camada repository em `src/lib/property-repository.ts`. Retorna `{ properties, dataSource }`.
@@ -98,7 +107,7 @@ Tabela principal: `properties`.
 - O app funciona com dados mockados se as variáveis Supabase não estiverem configuradas.
 - Quando configurado, `getProperties()` lê `public.properties` em tempo de execução e mantém a UI usando o mesmo contrato `PropertyRecord`.
 - Erros de conexão, tabela vazia ou dados inválidos não quebram o dashboard: o app cai para mock local e mostra `fallback` na fonte de dados.
-- A escrita/edição ainda está fora desta etapa; CRUD fica para fase posterior.
+- A escrita/edição no banco ainda está fora desta etapa; o CRUD atual é rascunho local client-side para validar UX antes de persistir.
 - Campos do banco ficam em snake_case; campos do domínio ficam em camelCase.
 - `supabase/seed.sql` replica os 11 imóveis do CSV de fevereiro/2023 para ambiente demo/desenvolvimento.
 - O seed remove antes apenas registros com `source_label = 'Aluguéis Prédios - Fevereiro.csv'` e `source_reference_month = 'Fevereiro/2023'`, evitando duplicidade sem apagar outros dados.

@@ -26,8 +26,11 @@ Critério: app carrega via uma camada de dados única e não quebra sem credenci
 
 ## Fase 3 — CRUD básico [HITL]
 Critério: usuário consegue criar/editar imóvel manualmente no app.
-- [AFK] Criar formulários e rotas.
-- [HITL] Validar fluxo com 2 imóveis reais.
+- [AFK] Criar formulário local de novo imóvel com validação mínima. **Concluído em 2026-06-04.**
+- [AFK] Criar edição local de imóvel existente e atualização imediata dos indicadores. **Concluído em 2026-06-04.**
+- [AFK] Mostrar estado `rascunho local` e permitir descartar alterações não persistidas. **Concluído em 2026-06-04.**
+- [HITL] Validar fluxo com 2 imóveis reais antes de persistir no Supabase.
+- [AFK] Futuro: persistir create/update no Supabase quando autenticação/policies forem definidas.
 
 ## Fase 4 — Status e alertas [HITL]
 Critério: app mostra pendências, dados incompletos e pontos de atenção por imóvel.

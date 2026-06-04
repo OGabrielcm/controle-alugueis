@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- CRUD local antes de persistência Supabase
+
+O que mudou: adicionei cadastro e edição local de imóveis no `PropertyDashboard`, com estado `rascunho local`, validação mínima e opção de descartar alterações.
+Por que: validar o fluxo manual de criar/editar imóveis antes de acoplar escrita real no Supabase e antes de definir autenticação/RLS.
+Alternativa descartada: escrever diretamente no banco nesta etapa; sem autenticação e policies, isso criaria risco e complexidade prematura.
+Impacto: cards, filtros, prioridades e tabela reagem às alterações, mas os dados voltam ao estado carregado quando a página recarrega ou quando rascunhos são descartados.
+Como reverter: remover os estados e handlers de CRUD em `PropertyDashboard`, restaurando a tabela como somente leitura.
+
 ## 2026-06-04 -- Seed SQL para base demo do Supabase
 
 O que mudou: adicionei `app/supabase/seed.sql` com os 11 imóveis do CSV de fevereiro/2023 e marquei todos como `source_is_outdated = true`.
