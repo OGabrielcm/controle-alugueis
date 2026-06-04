@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FileText, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -410,7 +411,9 @@ function PropertyList({
                 return (
                   <tr key={property.id} className="bg-slate-900/80 shadow-lg shadow-black/10">
                     <td className="rounded-l-2xl px-4 py-4 font-medium text-white">
-                      <div>{property.buildingName}</div>
+                      <Link href={`/imoveis/${encodeURIComponent(property.id)}`} className="transition hover:text-emerald-300">
+                        {property.buildingName}
+                      </Link>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {getPropertyAlerts(property).slice(0, 2).map((alert) => (
                           <Badge key={alert.label} variant={alert.severity}>{alert.label}</Badge>
@@ -427,7 +430,10 @@ function PropertyList({
                     <td className="px-4 py-4 text-slate-300">{property.receivingBank ?? "—"}</td>
                     <td className="px-4 py-4"><Badge variant={badgeVariantByStatus[status]}>{status}</Badge></td>
                     <td className="rounded-r-2xl px-4 py-4">
-                      <Button variant="secondary" onClick={() => onEdit(property)}>Editar</Button>
+                      <div className="flex flex-wrap gap-2">
+                        <ButtonLink href={`/imoveis/${encodeURIComponent(property.id)}`} variant="secondary">Detalhes</ButtonLink>
+                        <Button variant="secondary" onClick={() => onEdit(property)}>Editar</Button>
+                      </div>
                     </td>
                   </tr>
                 );
