@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- CSV de fevereiro recebido como base estrutural desatualizada
+
+O que mudou: substituí os mocks inferidos do screenshot por dados importados do CSV `Aluguéis Prédios - Fevereiro.csv`.
+Por que: Mercês enviou a planilha real dos imóveis, mas avisou que os dados estão desatualizados.
+Alternativa descartada: tratar o CSV como fonte atual de verdade operacional.
+Impacto: a UI e o schema passam a refletir melhor a estrutura real da planilha, mas os valores/status não devem ser usados como situação atual sem revisão.
+Como reverter: voltar o commit desta alteração ou substituir `src/lib/rentals.ts` por dados atualizados.
+
 ## 2026-06-04 -- Bootstrap inicial a partir de imagem de planilha
 
 O que mudou: criado projeto inicial com docs PRD/ADR/SDD/ROADMAP e app Next.js.

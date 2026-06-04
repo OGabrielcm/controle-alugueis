@@ -19,6 +19,12 @@ Imagem/planilha enviada pelo usuário. Estrutura observada:
 - Cada coluna após a primeira representa um imóvel/unidade.
 - Linhas representam campos do imóvel/contrato.
 
+CSV real recebido em 2026-06-04: `Aluguéis Prédios - Fevereiro.csv`.
+- Referência: Fevereiro/2023.
+- Status: desatualizado por aviso do usuário.
+- Uso correto: base estrutural e mock inicial, não fonte de verdade operacional atual.
+- A planilha não inclui nomes de inquilinos nem datas finais de contrato preenchidas para os imóveis desta versão.
+
 Campos observados:
 - Nome do prédio/unidade.
 - Alugado? booleano.

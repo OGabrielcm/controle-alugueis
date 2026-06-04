@@ -32,13 +32,20 @@ Campos:
 - `condoPaidByTenant`: boolean.
 - `extraFeeAmount`: number opcional.
 - `extraFeePaidByTenant`: boolean.
+- `unexpectedCostsAmount`: number opcional.
 - `unexpectedCostsNotes`: string opcional.
 - `maintenanceAmount`: number opcional.
 - `maintenancePaidByTenant`: boolean.
 - `iptuAmount`: number opcional.
 - `iptuPaidByTenant`: boolean.
+- `garbageFeeAmount`: number opcional.
 - `laudemioAmount`: number opcional.
 - `contractUrl`: string opcional.
+- `receivingBank`: banco de recebimento do aluguel, string opcional.
+- `hasRentDeposit`: boolean para calção/caução do aluguel.
+
+### Status da fonte de dados
+A planilha `Aluguéis Prédios - Fevereiro.csv` é referência de fevereiro/2023 e está desatualizada. Ela deve ser usada como base estrutural e mock inicial; o estado atual dos imóveis precisa ser validado manualmente antes de qualquer uso operacional.
 
 ## Invariantes
 - Valores monetários nunca podem ser negativos.
