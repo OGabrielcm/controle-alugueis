@@ -20,6 +20,12 @@ import {
   propertyExpenseTotal,
   summarizePortfolio,
 } from "@/lib/rentals";
+import {
+  type PropertyDraft,
+  draftFromProperty,
+  emptyPropertyDraft,
+  propertyFromDraft,
+} from "@/lib/property-draft";
 import type { PropertyDataSource } from "@/lib/property-repository";
 
 const STORAGE_KEY = "controle-alugueis.local-properties.v1";
@@ -33,76 +39,11 @@ type PropertyWorkspaceProps = {
   supabaseReady: boolean;
 };
 
-type PropertyDraft = {
-  id?: string;
-  buildingName: string;
-  tenantName: string;
-  paymentDueDate: string;
-  rentAmount: string;
-  receivingBank: string;
-  isRented: boolean;
-  isRentPaid: boolean;
-};
-
-const emptyDraft: PropertyDraft = {
-  buildingName: "",
-  tenantName: "",
-  paymentDueDate: "",
-  rentAmount: "0",
-  receivingBank: "",
-  isRented: true,
-  isRentPaid: false,
-};
-
 const badgeVariantByStatus = {
   Ok: "success",
   Revisar: "warning",
   Atenção: "danger",
 } as const;
-
-function draftFromProperty(property: PropertyRecord): PropertyDraft {
-  return {
-    id: property.id,
-    buildingName: property.buildingName,
-    tenantName: property.tenantName ?? "",
-    paymentDueDate: property.paymentDueDate ?? "",
-    rentAmount: property.rentAmount.toString(),
-    receivingBank: property.receivingBank ?? "",
-    isRented: property.isRented,
-    isRentPaid: property.isRentPaid,
-  };
-}
-
-function propertyFromDraft(draft: PropertyDraft, current?: PropertyRecord): PropertyRecord {
-  const rentAmount = Number(draft.rentAmount.replace(",", "."));
-
-  return {
-    id: current?.id ?? draft.id ?? `local-${Date.now()}`,
-    buildingName: draft.buildingName.trim(),
-    isRented: draft.isRented,
-    tenantName: draft.tenantName.trim() || undefined,
-    contractEndDate: current?.contractEndDate,
-    paymentDueDate: draft.paymentDueDate || undefined,
-    isRentPaid: draft.isRentPaid,
-    rentAmount,
-    condoAmount: current?.condoAmount ?? 0,
-    condoPaymentDate: current?.condoPaymentDate,
-    condoPaidByTenant: current?.condoPaidByTenant ?? false,
-    extraFeeAmount: current?.extraFeeAmount,
-    extraFeePaidByTenant: current?.extraFeePaidByTenant ?? false,
-    unexpectedCostsAmount: current?.unexpectedCostsAmount,
-    unexpectedCostsNotes: current?.unexpectedCostsNotes,
-    maintenanceAmount: current?.maintenanceAmount,
-    maintenancePaidByTenant: current?.maintenancePaidByTenant ?? false,
-    iptuAmount: current?.iptuAmount,
-    iptuPaidByTenant: current?.iptuPaidByTenant ?? false,
-    garbageFeeAmount: current?.garbageFeeAmount,
-    laudemioAmount: current?.laudemioAmount,
-    contractUrl: current?.contractUrl,
-    receivingBank: draft.receivingBank.trim() || undefined,
-    hasRentDeposit: current?.hasRentDeposit ?? false,
-  };
-}
 
 function loadLocalProperties(fallback: PropertyRecord[]) {
   if (typeof window === "undefined") return fallback;
@@ -122,7 +63,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
   const [managedProperties, setManagedProperties] = useState<PropertyRecord[]>(() => properties);
   const [activeFilter, setActiveFilter] = useState<PortfolioFilter>("all");
   const [editingDraft, setEditingDraft] = useState<PropertyDraft | null>(null);
-  const [newDraft, setNewDraft] = useState<PropertyDraft>(emptyDraft);
+  const [newDraft, setNewDraft] = useState<PropertyDraft>(emptyPropertyDraft);
   const [formError, setFormError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -152,7 +93,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
   function resetLocalChanges() {
     setManagedProperties(properties);
     setEditingDraft(null);
-    setNewDraft(emptyDraft);
+    setNewDraft(emptyPropertyDraft);
     setFormError(null);
     setActiveFilter("all");
     window.localStorage.removeItem(STORAGE_KEY);
@@ -184,7 +125,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
     });
 
     setEditingDraft(null);
-    setNewDraft(emptyDraft);
+    setNewDraft(emptyPropertyDraft);
     setFormError(null);
   }
 
@@ -244,7 +185,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
               draft={newDraft}
               formError={formError}
               onCancel={() => {
-                setNewDraft(emptyDraft);
+                setNewDraft(emptyPropertyDraft);
                 setFormError(null);
               }}
               onChange={setNewDraft}
@@ -515,37 +456,98 @@ function PropertyForm({
   saveLabel: string;
 }) {
   return (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Label>
-          Imóvel
-          <Input value={draft.buildingName} onChange={(event) => onChange({ ...draft, buildingName: event.target.value })} placeholder="Ex.: Apt. Demo 101" />
-        </Label>
-        <Label>
-          Inquilino
-          <Input value={draft.tenantName} onChange={(event) => onChange({ ...draft, tenantName: event.target.value })} placeholder="Opcional" />
-        </Label>
-        <Label>
-          Vencimento
-          <Input type="date" value={draft.paymentDueDate} onChange={(event) => onChange({ ...draft, paymentDueDate: event.target.value })} />
-        </Label>
-        <Label>
-          Aluguel
-          <Input inputMode="decimal" value={draft.rentAmount} onChange={(event) => onChange({ ...draft, rentAmount: event.target.value })} placeholder="0,00" />
-        </Label>
-        <Label className="xl:col-span-2">
-          Banco de recebimento
-          <Input value={draft.receivingBank} onChange={(event) => onChange({ ...draft, receivingBank: event.target.value })} placeholder="Ex.: Nubank" />
-        </Label>
-        <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
-          <input type="checkbox" checked={draft.isRented} onChange={(event) => onChange({ ...draft, isRented: event.target.checked })} className="size-4 accent-emerald-300" />
-          Está alugado
-        </label>
-        <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
-          <input type="checkbox" checked={draft.isRentPaid} onChange={(event) => onChange({ ...draft, isRentPaid: event.target.checked })} className="size-4 accent-emerald-300" />
-          Aluguel pago
-        </label>
-      </div>
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-white">Dados do imóvel</p>
+          <p className="text-xs text-slate-500">Identificação básica para separar carteira, pagamento e contrato.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Label>
+            Imóvel
+            <Input value={draft.buildingName} onChange={(event) => onChange({ ...draft, buildingName: event.target.value })} placeholder="Ex.: Apt. Demo 101" />
+          </Label>
+          <Label className="xl:col-span-2">
+            Endereço/identificação
+            <Input value={draft.propertyAddress} onChange={(event) => onChange({ ...draft, propertyAddress: event.target.value })} placeholder="Rua, prédio, bloco ou referência" />
+          </Label>
+          <Label>
+            Banco de recebimento
+            <Input value={draft.receivingBank} onChange={(event) => onChange({ ...draft, receivingBank: event.target.value })} placeholder="Ex.: Nubank" />
+          </Label>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-white">Inquilino e aluguel</p>
+          <p className="text-xs text-slate-500">Campos mínimos para acompanhar cobrança e contato.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Label>
+            Inquilino
+            <Input value={draft.tenantName} onChange={(event) => onChange({ ...draft, tenantName: event.target.value })} placeholder="Opcional" />
+          </Label>
+          <Label>
+            Contato do inquilino
+            <Input value={draft.tenantContact} onChange={(event) => onChange({ ...draft, tenantContact: event.target.value })} placeholder="Telefone, e-mail ou WhatsApp" />
+          </Label>
+          <Label>
+            Vencimento mensal
+            <Input type="date" value={draft.paymentDueDate} onChange={(event) => onChange({ ...draft, paymentDueDate: event.target.value })} />
+          </Label>
+          <Label>
+            Aluguel
+            <Input inputMode="decimal" value={draft.rentAmount} onChange={(event) => onChange({ ...draft, rentAmount: event.target.value })} placeholder="0,00" />
+          </Label>
+          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
+            <input type="checkbox" checked={draft.isRented} onChange={(event) => onChange({ ...draft, isRented: event.target.checked })} className="size-4 accent-emerald-300" />
+            Está alugado
+          </label>
+          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
+            <input type="checkbox" checked={draft.isRentPaid} onChange={(event) => onChange({ ...draft, isRentPaid: event.target.checked })} className="size-4 accent-emerald-300" />
+            Aluguel pago
+          </label>
+        </div>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-4">
+        <div>
+          <p className="text-sm font-semibold text-white">Base contratual</p>
+          <p className="text-xs text-slate-500">Ainda sem upload de contrato; primeiro vamos registrar os dados que geram alertas.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Label>
+            Início do contrato
+            <Input type="date" value={draft.contractStartDate} onChange={(event) => onChange({ ...draft, contractStartDate: event.target.value })} />
+          </Label>
+          <Label>
+            Vencimento do contrato
+            <Input type="date" value={draft.contractEndDate} onChange={(event) => onChange({ ...draft, contractEndDate: event.target.value })} />
+          </Label>
+          <Label>
+            Data base do reajuste
+            <Input type="date" value={draft.rentAdjustmentBaseDate} disabled={!draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, rentAdjustmentBaseDate: event.target.value })} />
+          </Label>
+          <Label>
+            Índice/cláusula
+            <Input value={draft.rentAdjustmentIndex} disabled={!draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, rentAdjustmentIndex: event.target.value })} placeholder="Ex.: IPCA, IGP-M" />
+          </Label>
+          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300 md:col-span-2">
+            <input type="checkbox" checked={draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, hasAnnualAdjustment: event.target.checked })} className="size-4 accent-emerald-300" />
+            Contrato tem cláusula anual de reajuste
+          </label>
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-300 md:col-span-2 xl:col-span-4">
+            Observações contratuais
+            <textarea
+              value={draft.contractNotes}
+              onChange={(event) => onChange({ ...draft, contractNotes: event.target.value })}
+              placeholder="Ex.: cláusula de reajuste, prazo de renovação, condições especiais"
+              className="min-h-24 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-emerald-300/60"
+            />
+          </label>
+        </div>
+      </section>
 
       {formError ? <p className="text-sm text-red-200">{formError}</p> : null}
 

@@ -10,9 +10,16 @@ export const sourceData = {
 export const propertySchema = z.object({
   id: z.string(),
   buildingName: z.string().min(1),
+  propertyAddress: z.string().optional(),
   isRented: z.boolean(),
   tenantName: z.string().optional(),
+  tenantContact: z.string().optional(),
+  contractStartDate: z.string().optional(),
   contractEndDate: z.string().optional(),
+  hasAnnualAdjustment: z.boolean().optional(),
+  rentAdjustmentBaseDate: z.string().optional(),
+  rentAdjustmentIndex: z.string().optional(),
+  contractNotes: z.string().optional(),
   paymentDueDate: z.string().optional(),
   isRentPaid: z.boolean(),
   rentAmount: z.number().min(0),
@@ -326,6 +333,15 @@ export function getPropertyAlerts(item: PropertyRecord): PropertyAlert[] {
 
   if (item.isRented && !item.contractEndDate) {
     alerts.push({ label: "Sem data final de contrato", severity: "warning" });
+  }
+
+  if (item.isRented && item.contractEndDate) {
+    alerts.push({ label: `Contrato vence em ${formatDate(item.contractEndDate)}`, severity: "info" });
+  }
+
+  if (item.hasAnnualAdjustment && item.rentAdjustmentBaseDate) {
+    const index = item.rentAdjustmentIndex ? ` (${item.rentAdjustmentIndex})` : "";
+    alerts.push({ label: `Reajuste em ${formatDate(item.rentAdjustmentBaseDate)}${index}`, severity: "info" });
   }
 
   if (item.isRented && !item.isRentPaid) {
