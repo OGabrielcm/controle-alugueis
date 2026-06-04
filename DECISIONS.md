@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-04 -- Repository Supabase com fallback mock
+
+O que mudou: criei `src/lib/property-repository.ts`, transformei `page.tsx` em server component async e passei a enviar `dataSource` para o dashboard.
+Por que: Mercês pediu para executar a Etapa 4, preparando Supabase sem depender de credenciais ou quebrar o mock local.
+Alternativa descartada: conectar a UI diretamente no Supabase ou bloquear a evolução até existir `.env.local` real.
+Impacto: a página agora busca dados via repository; se Supabase estiver ausente, vazio, com erro ou dado inválido, o dashboard cai para mock e mostra `mock`/`fallback` na fonte.
+Como reverter: remover `property-repository.ts`, restaurar `page.tsx` para importar `properties` diretamente e remover o prop `dataSource` do `PropertyDashboard`.
+
 ## 2026-06-04 -- Dashboard operacional com filtros e prioridades
 
 O que mudou: extraí a UI principal para `PropertyDashboard`, adicionei filtros interativos de carteira e cards de prioridades do mês.
