@@ -1,5 +1,17 @@
 # Decisões do projeto
 
+## 2026-06-05 -- Cadastro com nome e confirmações explícitas
+
+O que mudou: `/cadastro` agora coleta nome, e-mail, confirmação de e-mail, senha e confirmação de senha antes de chamar Supabase Auth.
+
+Por que: o fluxo precisava evitar erros comuns de digitação no cadastro e já guardar o nome real do usuário como metadado (`full_name`) para uso futuro no MVP privado.
+
+Alternativa descartada: manter cadastro mínimo com apenas e-mail/senha e resolver nome/perfil depois.
+
+Impacto: o signup só prossegue quando e-mails e senhas conferem; o login continua simples com e-mail/senha.
+
+Como reverter: remover os campos condicionais de signup, voltar a validar apenas `email/password` e chamar `signUp` sem `options.data.full_name`.
+
 ## 2026-06-05 -- Persistência autenticada de imóveis
 
 O que mudou: o workspace de imóveis passou a carregar linhas privadas com a sessão Supabase no browser e a salvar cadastro/edição em `public.properties` com `owner_id` preenchido pelo usuário autenticado.
