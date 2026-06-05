@@ -63,10 +63,12 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 - `public.properties` tem RLS habilitado.
 - `anon` lê apenas linhas demo/desatualizadas com `source_is_outdated is true` via policy `properties_demo_read_outdated`.
 - `authenticated` pode ler/escrever apenas imóveis em que `owner_id = auth.uid()`.
-- `/login` e `/cadastro` ficam separados do dashboard operacional e usam Supabase Auth no browser.
+- `/login`, `/cadastro` e `/redefinir-senha` ficam separados do dashboard operacional e usam Supabase Auth no browser.
 - `/` redireciona para `/login`; o resumo operacional fica em `/dashboard`.
 - Rotas operacionais (`/dashboard`, `/imoveis`, `/imoveis/novo`, `/importar`) validam sessão no client e voltam para `/login` quando não há usuário ativo.
 - Cadastro não é tratado como login verificado: depois do signup, o app força saída e orienta confirmar o e-mail antes de entrar.
+- Cadastro repetido recebe copy segura: Supabase pode retornar sucesso sem reenviar confirmação quando a conta já existe.
+- `/login` oferece “Esqueci minha senha”, que envia link de recuperação para `/redefinir-senha` sem revelar se a conta existe.
 - O dashboard exibe controle de sessão com links de entrar/cadastrar ou botão `Sair` discreto quando há sessão ativa.
 - A UI ainda não implementa persistência real do formulário; antes de conectar writes, preencher `owner_id` no insert.
 - Não abrir escrita para `anon`.
@@ -134,7 +136,7 @@ A sequência abaixo prioriza produto e validação de domínio antes de deploy/p
    - Exibir prévia antes de salvar.
 
 7. **PR de integração real com Supabase**
-   - Validar visualmente o Supabase Auth em `/login`, `/cadastro`, `/dashboard` e botão `Sair`.
+   - Validar visualmente o Supabase Auth em `/login`, `/cadastro`, `/redefinir-senha`, `/dashboard` e botão `Sair`.
    - Conectar escrita real preenchendo `owner_id = auth.uid()`.
    - Armazenar anexos de contrato de forma vinculada ao imóvel.
    - Manter fallback/mock se fizer sentido para desenvolvimento.

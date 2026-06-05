@@ -9,11 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type AuthMode, getAuthModeCopy, validateAuthForm } from "@/lib/auth-form";
+import {
+  type AuthMode,
+  getAuthModeCopy,
+  getPasswordResetSuccessMessage,
+  getSignupSuccessMessage,
+  validateAuthForm,
+  validatePasswordResetEmail,
+} from "@/lib/auth-form";
 import { DASHBOARD_HOME } from "@/lib/session-routes";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 
-type AuthStatus = "idle" | "submitting";
+type AuthStatus = "idle" | "submitting" | "resetting";
 
 type AuthPanelProps = {
   mode: AuthMode;
@@ -59,7 +66,7 @@ export function AuthPanel({ mode }: AuthPanelProps) {
 
       await supabase.auth.signOut();
       setPassword("");
-      setMessage("Conta criada. Confirme o e-mail de autorização e depois entre pela página de login.");
+      setMessage(getSignupSuccessMessage());
       return;
     }
 
@@ -74,6 +81,35 @@ export function AuthPanel({ mode }: AuthPanelProps) {
     setPassword("");
     setMessage("Login validado. Redirecionando para o dashboard privado...");
     router.replace(DASHBOARD_HOME);
+  }
+
+  async function requestPasswordReset() {
+    setError(null);
+    setMessage(null);
+
+    if (!supabase) {
+      setError("Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY antes de usar autenticação.");
+      return;
+    }
+
+    const validated = validatePasswordResetEmail(email);
+    if (!validated.ok) {
+      setError(validated.error);
+      return;
+    }
+
+    setStatus("resetting");
+    const response = await supabase.auth.resetPasswordForEmail(validated.email, {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+    setStatus("idle");
+
+    if (response.error) {
+      setError(response.error.message);
+      return;
+    }
+
+    setMessage(getPasswordResetSuccessMessage());
   }
 
   return (
@@ -128,6 +164,17 @@ export function AuthPanel({ mode }: AuthPanelProps) {
               {copy.alternateLabel}
             </Link>
           </div>
+
+          {mode === "login" ? (
+            <button
+              className="w-fit text-left text-xs font-medium text-slate-400 underline-offset-4 transition hover:text-emerald-200 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              onClick={requestPasswordReset}
+              disabled={status !== "idle" || !configured}
+            >
+              {status === "resetting" ? "Enviando recuperação..." : "Esqueci minha senha"}
+            </button>
+          ) : null}
         </form>
 
         {error ? <p className="rounded-xl border border-red-300/20 bg-red-400/10 p-3 text-sm text-red-100">{error}</p> : null}

@@ -28,6 +28,30 @@ export function validateAuthForm(fields: AuthFormFields) {
   };
 }
 
+export function validatePasswordResetEmail(email: string) {
+  const parsed = authFormSchema.pick({ email: true }).safeParse({ email });
+
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: parsed.error.issues[0]?.message ?? "Informe um e-mail válido.",
+    };
+  }
+
+  return {
+    ok: true as const,
+    email: parsed.data.email,
+  };
+}
+
+export function getSignupSuccessMessage() {
+  return "Cadastro solicitado. Se essa conta já existia, nenhum novo e-mail será enviado; tente entrar pela página de login ou use recuperação de senha. Se for uma conta nova, confirme o e-mail de autorização antes de entrar.";
+}
+
+export function getPasswordResetSuccessMessage() {
+  return "Se existir uma conta para esse e-mail, enviaremos um link de recuperação. Confira a caixa de entrada e o spam.";
+}
+
 export function getAuthModeCopy(mode: AuthMode) {
   if (mode === "signup") {
     return {
