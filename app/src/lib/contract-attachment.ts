@@ -2,6 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const CONTRACT_ATTACHMENTS_BUCKET = "property-contracts";
 export const CONTRACT_ATTACHMENT_MAX_SIZE_BYTES = 10 * 1024 * 1024;
+export const CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+] as const;
 
 export type ContractFileLike = {
   name: string;
@@ -32,10 +36,11 @@ function slugify(value: string) {
 }
 
 export function normalizeContractFileName(fileName: string) {
-  const withoutExtension = fileName.replace(/\.pdf$/i, "");
+  const extension = fileName.toLowerCase().endsWith(".docx") ? "docx" : "pdf";
+  const withoutExtension = fileName.replace(/\.(pdf|docx)$/i, "");
   const safeName = slugify(withoutExtension);
 
-  return `${safeName || "contrato"}.pdf`;
+  return `${safeName || "contrato"}.${extension}`;
 }
 
 export function buildContractStoragePath({ propertyId, fileName, timestamp = Date.now() }: BuildContractStoragePathInput) {
@@ -48,13 +53,15 @@ export function buildContractStoragePath({ propertyId, fileName, timestamp = Dat
 export function getContractFileValidationError(file: ContractFileLike) {
   const isPdfByMime = file.type === "application/pdf";
   const isPdfByName = file.name.toLowerCase().endsWith(".pdf");
+  const isDocxByMime = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const isDocxByName = file.name.toLowerCase().endsWith(".docx");
 
-  if (!isPdfByMime || !isPdfByName) {
-    return "Envie um arquivo PDF do contrato.";
+  if (!(isPdfByMime && isPdfByName) && !(isDocxByMime && isDocxByName)) {
+    return "Envie um arquivo PDF ou DOCX do contrato.";
   }
 
   if (file.size > CONTRACT_ATTACHMENT_MAX_SIZE_BYTES) {
-    return "O PDF precisa ter até 10MB.";
+    return "O documento precisa ter até 10MB.";
   }
 
   return undefined;
@@ -78,7 +85,7 @@ export async function uploadContractAttachment({
   const { error } = await supabaseClient.storage
     .from(CONTRACT_ATTACHMENTS_BUCKET)
     .upload(path, file, {
-      contentType: "application/pdf",
+      contentType: file.type,
       cacheControl: "3600",
       upsert: false,
     });

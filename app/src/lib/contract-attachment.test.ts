@@ -12,6 +12,10 @@ describe("normalizeContractFileName", () => {
     assert.equal(normalizeContractFileName("Contrato Marcella 102 - Revisão Nº 1.PDF"), "contrato-marcella-102-revisao-no-1.pdf");
   });
 
+  it("preserva extensão docx em nome seguro", () => {
+    assert.equal(normalizeContractFileName("Contrato Marcella 102 - Revisão Nº 1.DOCX"), "contrato-marcella-102-revisao-no-1.docx");
+  });
+
   it("aplica nome padrão quando o arquivo não tem nome útil", () => {
     assert.equal(normalizeContractFileName("???.pdf"), "contrato.pdf");
   });
@@ -35,17 +39,28 @@ describe("getContractFileValidationError", () => {
     assert.equal(getContractFileValidationError({ name: "contrato.pdf", type: "application/pdf", size: 10 * 1024 * 1024 }), undefined);
   });
 
-  it("rejeita arquivos que não são PDF", () => {
+  it("aceita DOCX de até 10MB", () => {
     assert.equal(
-      getContractFileValidationError({ name: "contrato.png", type: "image/png", size: 500 }),
-      "Envie um arquivo PDF do contrato.",
+      getContractFileValidationError({
+        name: "contrato.docx",
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        size: 10 * 1024 * 1024,
+      }),
+      undefined,
     );
   });
 
-  it("rejeita PDFs acima de 10MB", () => {
+  it("rejeita arquivos que não são PDF ou DOCX", () => {
+    assert.equal(
+      getContractFileValidationError({ name: "contrato.png", type: "image/png", size: 500 }),
+      "Envie um arquivo PDF ou DOCX do contrato.",
+    );
+  });
+
+  it("rejeita documentos acima de 10MB", () => {
     assert.equal(
       getContractFileValidationError({ name: "contrato.pdf", type: "application/pdf", size: 10 * 1024 * 1024 + 1 }),
-      "O PDF precisa ter até 10MB.",
+      "O documento precisa ter até 10MB.",
     );
   });
 });

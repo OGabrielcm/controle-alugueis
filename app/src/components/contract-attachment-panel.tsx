@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES,
   CONTRACT_ATTACHMENTS_BUCKET,
   getContractFileValidationError,
   uploadContractAttachment,
@@ -44,10 +45,17 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  function selectFile(file: File | null) {
+    setSelectedFile(file);
+    setErrorMessage(file ? getContractFileValidationError(file) ?? null : null);
+    setStatusMessage(file ? `Arquivo selecionado: ${file.name}` : null);
+  }
 
   async function handleUpload() {
     if (!selectedFile) {
-      setErrorMessage("Selecione um PDF antes de enviar.");
+      setErrorMessage("Selecione um PDF ou DOCX antes de enviar.");
       return;
     }
 
@@ -58,7 +66,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
     }
 
     if (!supabaseReady || !supabase) {
-      setErrorMessage("Configure o Supabase e o bucket de contratos antes de enviar PDFs.");
+      setErrorMessage("Configure o Supabase e o bucket de contratos antes de enviar documentos.");
       return;
     }
 
@@ -91,7 +99,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle>Anexo do contrato</CardTitle>
-            <CardDescription>Upload de PDF por imóvel usando Supabase Storage.</CardDescription>
+            <CardDescription>Upload de PDF ou DOCX por imóvel usando Supabase Storage.</CardDescription>
           </div>
           <Badge variant={contractUrl ? "success" : "warning"}>{contractUrl ? "com anexo" : "sem anexo"}</Badge>
         </div>
@@ -101,7 +109,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
           <p>
             Bucket esperado: <span className="font-mono text-slate-200">{CONTRACT_ATTACHMENTS_BUCKET}</span>
           </p>
-          <p className="mt-2">Limite atual: PDF de até 10MB. O link fica salvo localmente até a persistência real do imóvel no Supabase.</p>
+          <p className="mt-2">Limite atual: PDF ou DOCX de até 10MB. O link fica salvo localmente até a persistência real do imóvel no Supabase.</p>
         </div>
 
         {contractUrl ? (
@@ -115,19 +123,37 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
           </a>
         ) : null}
 
-        <label className="block rounded-2xl border border-dashed border-white/15 bg-slate-950 p-4 text-sm text-slate-300 transition hover:border-emerald-300/40">
-          <span className="block font-medium text-slate-100">Selecionar PDF do contrato</span>
-          <span className="mt-1 block text-xs text-slate-500">O arquivo será enviado para o Storage quando o Supabase estiver configurado.</span>
+        <label
+          className={`block rounded-2xl border border-dashed p-4 text-sm text-slate-300 transition ${
+            isDragging ? "border-emerald-300/70 bg-emerald-300/[0.08]" : "border-white/15 bg-slate-950 hover:border-emerald-300/40"
+          }`}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setIsDragging(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDragging(false);
+            selectFile(event.dataTransfer.files?.[0] ?? null);
+          }}
+        >
+          <span className="block font-medium text-slate-100">Arraste o contrato aqui ou selecione um arquivo</span>
+          <span className="mt-1 block text-xs text-slate-500">PDF ou DOCX será enviado para o Storage quando o Supabase estiver configurado.</span>
           <input
             type="file"
-            accept="application/pdf,.pdf"
+            accept={`${CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES.join(",")},.pdf,.docx`}
             className="mt-3 block w-full text-sm text-slate-400 file:mr-4 file:rounded-full file:border-0 file:bg-emerald-300 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950"
             disabled={isUploading}
             onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
-              setSelectedFile(file);
-              setErrorMessage(file ? getContractFileValidationError(file) ?? null : null);
-              setStatusMessage(file ? `Arquivo selecionado: ${file.name}` : null);
+              selectFile(event.target.files?.[0] ?? null);
             }}
           />
         </label>

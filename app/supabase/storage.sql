@@ -1,4 +1,4 @@
--- Supabase Storage para PDFs de contratos
+-- Supabase Storage para documentos de contratos (PDF/DOCX)
 -- Execute depois de criar/configurar o projeto Supabase real.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -7,7 +7,10 @@ values (
   'property-contracts',
   true,
   10485760,
-  array['application/pdf']
+  array[
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
 )
 on conflict (id) do update set
   public = excluded.public,

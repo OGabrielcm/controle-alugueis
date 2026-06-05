@@ -43,7 +43,7 @@ npm run build
 
 1. Crie um projeto no Supabase.
 2. Rode o SQL em `supabase/schema.sql`.
-3. Rode o SQL em `supabase/storage.sql` para criar o bucket público `property-contracts` usado pelos PDFs de contrato.
+3. Rode o SQL em `supabase/storage.sql` para criar o bucket público `property-contracts` usado pelos documentos de contrato.
 4. Copie `.env.example` para `.env.local`.
 5. Preencha:
 
@@ -56,9 +56,9 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado.
 
 ### Anexos de contrato
 
-- A tela de detalhe do imóvel permite selecionar e enviar PDF de contrato para o Supabase Storage.
+- A tela de detalhe do imóvel permite selecionar ou arrastar/soltar PDF/DOCX de contrato para o Supabase Storage.
 - Bucket esperado: `property-contracts`.
-- Limite atual: PDF de até 10MB.
+- Limite atual: PDF ou DOCX de até 10MB.
 - Enquanto a escrita real da tabela `properties` não estiver implementada, o link gerado pelo upload fica salvo como rascunho local no navegador.
 - Antes de produção, revisar policies do Storage e trocar bucket público por acesso privado/signed URL se houver dados sensíveis.
 

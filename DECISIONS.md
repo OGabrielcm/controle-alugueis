@@ -1,5 +1,13 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-05 -- Revisão manual de anexos e validação multipágina
+
+O que mudou: feedback manual aprovou a navegação multipágina atual como melhor que a experiência anterior em página única; o fluxo de anexo deve aceitar PDF e DOCX, além de permitir arrastar/soltar sobre uma área de upload.
+Por que: o uso real de contratos pode vir em DOCX, e o fluxo de upload precisa ser mais natural antes de conectar Supabase real.
+Alternativa descartada: manter apenas seleção manual de PDF; isso bloqueia documentos editáveis e deixa a UX de anexo limitada.
+Impacto: o próximo gate técnico é configurar Supabase após validar esse fluxo localmente; só então persistir URLs/paths de anexos e habilitar escrita real.
+Como reverter: voltar as alterações em `contract-attachment.ts`, `contract-attachment-panel.tsx`, `contract-attachment.test.ts`, `supabase/storage.sql`, `SDD.md` e `ROADMAP.md`.
+
 ## 2026-06-04 -- Upload de contrato via Supabase Storage
 
 O que mudou: adicionei um painel de anexo na página de detalhe do imóvel, validação de PDF até 10MB, helper de upload para o bucket `property-contracts` e script `supabase/storage.sql`.
