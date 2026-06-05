@@ -1,5 +1,17 @@
 # Decisões do projeto
 
+## 2026-06-05 -- Persistência autenticada de imóveis
+
+O que mudou: o workspace de imóveis passou a carregar linhas privadas com a sessão Supabase no browser e a salvar cadastro/edição em `public.properties` com `owner_id` preenchido pelo usuário autenticado.
+
+Por que: o banco já tinha RLS por dono; faltava trocar o rascunho local do formulário por insert/update real sem abrir escrita para `anon`.
+
+Alternativa descartada: usar uma rota server-side com service role para este MVP inicial. O fluxo atual usa apenas anon client + sessão Supabase, respeitando as policies de `authenticated`.
+
+Impacto: usuários logados podem criar e editar seus próprios imóveis; sem sessão/configuração, o app mantém fallback de rascunho local para desenvolvimento. As linhas demo anon continuam somente leitura.
+
+Como reverter: remover `property-persistence`, voltar `PropertyWorkspace` a salvar apenas em localStorage e manter RLS sem writes acionados pela UI.
+
 ## 2026-06-05 -- Página dedicada para solicitar recuperação de senha
 
 O que mudou: `/login` deixou de enviar recuperação diretamente pelo e-mail digitado no formulário e passou a apontar para `/recuperar-senha`, que tem campo próprio, copy segura e redireciona o link Supabase para `/redefinir-senha`.

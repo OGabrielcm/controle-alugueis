@@ -71,7 +71,7 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 - `/login` oferece link claro para `/recuperar-senha`; essa tela tem campo próprio de e-mail e envia link para `/redefinir-senha` sem revelar se a conta existe.
 - Ao salvar nova senha em `/redefinir-senha`, o app mostra confirmação curta e volta automaticamente para `/login`.
 - O dashboard exibe controle de sessão com links de entrar/cadastrar ou botão `Sair` discreto quando há sessão ativa.
-- A UI ainda não implementa persistência real do formulário; antes de conectar writes, preencher `owner_id` no insert.
+- A UI de cadastro/edição de imóveis já tenta persistir no Supabase quando há sessão ativa, preenchendo `owner_id` com o usuário autenticado; sem sessão/configuração, mantém fallback de rascunho local.
 - Não abrir escrita para `anon`.
 - Use `npm run smoke:supabase` para validar a leitura real sem imprimir secrets.
 
@@ -138,7 +138,7 @@ A sequência abaixo prioriza produto e validação de domínio antes de deploy/p
 
 7. **PR de integração real com Supabase**
    - Validar visualmente o Supabase Auth em `/login`, `/cadastro`, `/recuperar-senha`, `/redefinir-senha`, `/dashboard` e botão `Sair`.
-   - Conectar escrita real preenchendo `owner_id = auth.uid()`.
+   - Validar visualmente cadastro e edição reais com usuário logado, confirmando que as linhas entram com `owner_id = auth.uid()`.
    - Armazenar anexos de contrato de forma vinculada ao imóvel.
    - Manter fallback/mock se fizer sentido para desenvolvimento.
    - Validar schema, variáveis de ambiente e fluxo completo.
