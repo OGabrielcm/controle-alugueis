@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-06-05 -- Login como primeira entrada e dashboard protegido
+
+O que mudou: `/` passou a redirecionar para `/login`, o resumo operacional foi movido para `/dashboard`, as rotas operacionais validam sessão Supabase no client antes de renderizar o shell e o logout virou ação discreta no controle de sessão.
+
+Por que: validação visual mostrou que o app ainda podia cair direto no dashboard quando havia sessão salva no navegador, confundindo cadastro, login confirmado e área operacional.
+
+Alternativa descartada: manter `/` como dashboard demo público e confiar apenas em copy explicativo de login/cadastro.
+
+Impacto: a primeira experiência fica centrada em autenticação; usuário sem sessão volta para `/login`, usuário autenticado entra no dashboard privado em `/dashboard`.
+
+Como reverter: voltar o conteúdo de `/dashboard` para `/`, remover o guard client-side do `AppShell` e restaurar links de resumo para `/`.
+
 ## 2026-06-05 -- Separar autenticação do dashboard operacional
 
 O que mudou: `/login` e `/cadastro` viraram páginas próprias fora do shell do dashboard, o item de login saiu da navegação principal e o dashboard ganhou controle de sessão com links de entrada/cadastro ou botão `Sair` quando há usuário autenticado.

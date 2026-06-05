@@ -26,7 +26,7 @@ export default function ImportPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
-          <ButtonLink href="/">Voltar ao resumo</ButtonLink>
+          <ButtonLink href="/dashboard">Voltar ao resumo</ButtonLink>
           <ButtonLink href="/imoveis" variant="secondary">Ver carteira</ButtonLink>
         </CardContent>
       </Card>

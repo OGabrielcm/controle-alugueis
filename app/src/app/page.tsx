@@ -1,18 +1,6 @@
-import { PropertyWorkspace } from "@/components/property-workspace";
-import { getProperties } from "@/lib/property-repository";
-import { hasSupabaseConfig } from "@/lib/supabase";
+import { redirect } from "next/navigation";
+import { LOGIN_PATH } from "@/lib/session-routes";
 
-export const dynamic = "force-dynamic";
-
-export default async function Home() {
-  const { properties, dataSource } = await getProperties();
-
-  return (
-    <PropertyWorkspace
-      mode="overview"
-      properties={properties}
-      dataSource={dataSource}
-      supabaseReady={hasSupabaseConfig()}
-    />
-  );
+export default function Home() {
+  redirect(LOGIN_PATH);
 }

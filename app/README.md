@@ -9,7 +9,7 @@ O objetivo do projeto é evoluir primeiro o fluxo de produto e domínio, com fun
 - Base em Next.js com App Router, TypeScript e Tailwind CSS.
 - Layout segmentado em múltiplas páginas, evitando um fluxo concentrado em uma única tela.
 - Shell visual com navegação principal.
-- Páginas iniciais para dashboard, imóveis, novo imóvel, login, cadastro e importação.
+- `/login` é a primeira entrada; o dashboard operacional mora em `/dashboard` e as demais rotas ficam atrás de sessão Supabase.
 - Componentes base de UI inspirados em shadcn/ui.
 - Dados mockados disponíveis para desenvolvimento local.
 - Supabase real configurado para leitura demo segura, com fallback/mock se a conexão falhar.
@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-Abra `http://localhost:3000`.
+Abra `http://localhost:3000`; a raiz redireciona para `/login`.
 
 ## Scripts úteis
 
@@ -64,8 +64,10 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 - `anon` lê apenas linhas demo/desatualizadas com `source_is_outdated is true` via policy `properties_demo_read_outdated`.
 - `authenticated` pode ler/escrever apenas imóveis em que `owner_id = auth.uid()`.
 - `/login` e `/cadastro` ficam separados do dashboard operacional e usam Supabase Auth no browser.
+- `/` redireciona para `/login`; o resumo operacional fica em `/dashboard`.
+- Rotas operacionais (`/dashboard`, `/imoveis`, `/imoveis/novo`, `/importar`) validam sessão no client e voltam para `/login` quando não há usuário ativo.
 - Cadastro não é tratado como login verificado: depois do signup, o app força saída e orienta confirmar o e-mail antes de entrar.
-- O dashboard exibe controle de sessão com links de entrar/cadastrar ou botão `Sair` quando há sessão ativa.
+- O dashboard exibe controle de sessão com links de entrar/cadastrar ou botão `Sair` discreto quando há sessão ativa.
 - A UI ainda não implementa persistência real do formulário; antes de conectar writes, preencher `owner_id` no insert.
 - Não abrir escrita para `anon`.
 - Use `npm run smoke:supabase` para validar a leitura real sem imprimir secrets.
@@ -132,7 +134,7 @@ A sequência abaixo prioriza produto e validação de domínio antes de deploy/p
    - Exibir prévia antes de salvar.
 
 7. **PR de integração real com Supabase**
-   - Validar visualmente o Supabase Auth em `/login` e `/cadastro`.
+   - Validar visualmente o Supabase Auth em `/login`, `/cadastro`, `/dashboard` e botão `Sair`.
    - Conectar escrita real preenchendo `owner_id = auth.uid()`.
    - Armazenar anexos de contrato de forma vinculada ao imóvel.
    - Manter fallback/mock se fizer sentido para desenvolvimento.

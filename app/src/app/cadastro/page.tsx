@@ -5,8 +5,8 @@ export default function CadastroPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center gap-8 px-5 py-10">
       <header className="max-w-3xl">
-        <Link href="/" className="text-sm font-semibold text-emerald-300 hover:text-emerald-200">
-          ← Voltar ao dashboard demo
+        <Link href="/login" className="text-sm font-semibold text-emerald-300 hover:text-emerald-200">
+          Já tenho conta: ir para login
         </Link>
         <p className="mt-8 text-sm font-medium text-emerald-300">Novo acesso</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white md:text-5xl">Criar conta do proprietário</h1>
