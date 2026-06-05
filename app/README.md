@@ -12,7 +12,7 @@ O objetivo do projeto é evoluir primeiro o fluxo de produto e domínio, com fun
 - Páginas iniciais para dashboard, imóveis, novo imóvel e importação.
 - Componentes base de UI inspirados em shadcn/ui.
 - Dados mockados disponíveis para desenvolvimento local.
-- Supabase previsto como persistência, mas o app ainda funciona sem configuração real.
+- Supabase real configurado para leitura demo segura, com fallback/mock se a conexão falhar.
 
 ## Stack
 
@@ -36,23 +36,33 @@ Abra `http://localhost:3000`.
 
 ```bash
 npm run lint
+npm test
 npm run build
+npm run smoke:supabase
 ```
 
 ## Supabase
 
 1. Crie um projeto no Supabase.
 2. Rode o SQL em `supabase/schema.sql`.
-3. Rode o SQL em `supabase/storage.sql` para criar o bucket público `property-contracts` usado pelos documentos de contrato.
-4. Copie `.env.example` para `.env.local`.
-5. Preencha:
+3. Rode o SQL em `supabase/seed.sql` se quiser popular a base demo/desatualizada.
+4. Rode o SQL em `supabase/storage.sql` para criar o bucket público `property-contracts` usado pelos documentos de contrato.
+5. Copie `.env.example` para `.env.local`.
+6. Preencha:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
-A primeira versão funciona com dados mockados mesmo sem Supabase configurado.
+A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Quando Supabase está configurado, o app tenta ler `public.properties` em tempo de execução e cai para mock se houver erro, tabela vazia ou linhas inválidas.
+
+### RLS atual
+
+- `public.properties` tem RLS habilitado.
+- `anon` lê apenas linhas demo/desatualizadas com `source_is_outdated is true` via policy `properties_demo_read_outdated`.
+- Escritas reais (`insert/update/delete`) ainda aguardam autenticação/`owner_id` ou outro modelo seguro. Não abrir escrita para `anon`.
+- Use `npm run smoke:supabase` para validar a leitura real sem imprimir secrets.
 
 ### Anexos de contrato
 
