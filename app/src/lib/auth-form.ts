@@ -32,16 +32,16 @@ export function getAuthModeCopy(mode: AuthMode) {
   if (mode === "signup") {
     return {
       title: "Criar acesso privado",
-      description: "Crie o login que será usado para gravar imóveis com owner_id no Supabase.",
+      description: "Crie a conta e confirme o e-mail antes de entrar no MVP privado.",
       submitLabel: "Criar conta",
-      alternateLabel: "Já tenho conta",
+      alternateLabel: "Já tenho conta: ir para login",
     };
   }
 
   return {
     title: "Entrar no MVP privado",
-    description: "Entre no MVP privado para preparar o próximo passo: salvar imóveis reais com RLS por usuário.",
+    description: "Entre somente depois de confirmar o e-mail de autorização do Supabase.",
     submitLabel: "Entrar",
-    alternateLabel: "Criar conta",
+    alternateLabel: "Criar conta separada",
   };
 }

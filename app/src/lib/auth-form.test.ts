@@ -26,11 +26,12 @@ describe("validateAuthForm", () => {
 });
 
 describe("getAuthModeCopy", () => {
-  it("explica login como entrada no MVP privado", () => {
-    assert.match(getAuthModeCopy("login").description, /MVP privado/);
+  it("explica login como etapa posterior à confirmação de e-mail", () => {
+    assert.match(getAuthModeCopy("login").description, /confirmar o e-mail/);
   });
 
   it("explica signup como criação de acesso privado", () => {
     assert.match(getAuthModeCopy("signup").title, /Criar acesso privado/);
+    assert.match(getAuthModeCopy("signup").description, /confirme o e-mail/);
   });
 });

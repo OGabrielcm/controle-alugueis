@@ -3,19 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Building2, FileSpreadsheet, Home, Plus, TableProperties, UserCircle } from "lucide-react";
+import { Building2, FileSpreadsheet, Home, Plus, TableProperties } from "lucide-react";
+import { SessionControl } from "@/components/session-control";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Resumo", icon: Home },
   { href: "/imoveis", label: "Imóveis", icon: TableProperties },
   { href: "/imoveis/novo", label: "Novo imóvel", icon: Plus },
-  { href: "/login", label: "Login", icon: UserCircle },
   { href: "/importar", label: "Importar", icon: FileSpreadsheet },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isAuthRoute = pathname === "/login" || pathname === "/cadastro";
+
+  if (isAuthRoute) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100">
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.10),transparent_28%)]" />
+        <main className="relative min-h-screen">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -61,12 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </p>
           </div>
 
-          <div className="mt-3 hidden rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-50 lg:block">
-            <p className="font-semibold">MVP privado</p>
-            <p className="mt-1 text-xs leading-5 text-emerald-100/75">
-              Escrita real será feita com Supabase Auth e owner_id por usuário.
-            </p>
-          </div>
+          <SessionControl />
         </aside>
 
         <main className="px-5 py-6 sm:px-8 lg:px-10 lg:py-8">{children}</main>
