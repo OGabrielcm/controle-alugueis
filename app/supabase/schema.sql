@@ -29,6 +29,7 @@ create table if not exists public.properties (
   garbage_fee_amount numeric(12,2) check (garbage_fee_amount is null or garbage_fee_amount >= 0),
   laudemio_amount numeric(12,2) check (laudemio_amount is null or laudemio_amount >= 0),
   contract_url text,
+  owner_id uuid references auth.users(id) on delete cascade,
   receiving_bank text,
   has_rent_deposit boolean not null default false,
   source_label text,
@@ -37,6 +38,9 @@ create table if not exists public.properties (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create index if not exists properties_owner_id_idx
+on public.properties(owner_id);
 
 alter table public.properties enable row level security;
 
@@ -51,6 +55,35 @@ for select
 to anon
 using (source_is_outdated is true);
 
--- MVP solo: anon lê apenas seeds/demo desatualizados marcados com source_is_outdated.
--- Escritas reais devem esperar autenticação/owner_id antes de abrir policies de insert/update/delete.
--- Exemplo futuro: criar policies por usuário/proprietário usando auth.uid().
+drop policy if exists properties_owner_select on public.properties;
+create policy properties_owner_select
+on public.properties
+for select
+to authenticated
+using (owner_id = (select auth.uid()));
+
+drop policy if exists properties_owner_insert on public.properties;
+create policy properties_owner_insert
+on public.properties
+for insert
+to authenticated
+with check (owner_id = (select auth.uid()));
+
+drop policy if exists properties_owner_update on public.properties;
+create policy properties_owner_update
+on public.properties
+for update
+to authenticated
+using (owner_id = (select auth.uid()))
+with check (owner_id = (select auth.uid()));
+
+drop policy if exists properties_owner_delete on public.properties;
+create policy properties_owner_delete
+on public.properties
+for delete
+to authenticated
+using (owner_id = (select auth.uid()));
+
+-- MVP privado: anon lê apenas seeds/demo desatualizados marcados com source_is_outdated.
+-- Escritas reais ficam restritas a usuários autenticados donos do imóvel via owner_id = auth.uid().
+-- Antes de conectar formulários reais, a UI ainda precisa exigir login e preencher owner_id no insert.

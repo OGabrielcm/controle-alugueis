@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-06-05 -- Preparar MVP privado com ownership por usuário
+
+O que mudou: `public.properties` passou a ter `owner_id` referenciando `auth.users(id)`, índice por dono e policies RLS para `authenticated` ler/escrever apenas linhas em que `owner_id = auth.uid()`.
+
+Por que: Mercês escolheu o caminho de MVP privado com login antes de liberar escrita real de imóveis, evitando `insert/update/delete` público via `anon`.
+
+Alternativa descartada: manter escrita indefinida até a tela de login ficar pronta ou abrir escrita temporária para `anon`.
+
+Impacto: o banco fica preparado para persistência real segura; a UI ainda precisa implementar Supabase Auth e preencher `owner_id` no insert antes de trocar rascunhos locais por writes reais.
+
+Como reverter: remover as policies `properties_owner_*`, dropar o índice `properties_owner_id_idx` e remover a coluna `owner_id` se o modelo de propriedade mudar.
+
 ## 2026-06-05 -- Revoke execução pública de função SECURITY DEFINER
 
 O que mudou: foi revogado `execute` de `public.rls_auto_enable()` para `anon`, `authenticated` e `public` no Supabase real.
