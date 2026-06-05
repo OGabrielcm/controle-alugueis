@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Building2, FileSpreadsheet, Home, Plus, TableProperties } from "lucide-react";
+import { Building2, FileSpreadsheet, Home, Plus, TableProperties, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Resumo", icon: Home },
   { href: "/imoveis", label: "Imóveis", icon: TableProperties },
   { href: "/imoveis/novo", label: "Novo imóvel", icon: Plus },
+  { href: "/login", label: "Login", icon: UserCircle },
   { href: "/importar", label: "Importar", icon: FileSpreadsheet },
 ];
 
@@ -57,6 +58,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <p className="font-semibold">Dados em validação</p>
             <p className="mt-1 text-xs leading-5 text-amber-100/75">
               A base atual vem do CSV de fevereiro/2023 e serve como estrutura/demo, não como verdade operacional.
+            </p>
+          </div>
+
+          <div className="mt-3 hidden rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-50 lg:block">
+            <p className="font-semibold">MVP privado</p>
+            <p className="mt-1 text-xs leading-5 text-emerald-100/75">
+              Escrita real será feita com Supabase Auth e owner_id por usuário.
             </p>
           </div>
         </aside>

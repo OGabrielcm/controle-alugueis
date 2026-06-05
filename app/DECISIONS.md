@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-06-05 -- Supabase Auth como primeiro passo de escrita privada
+
+O que mudou: foi adicionada a rota `/login` com formulário client-side para login/criação de conta via Supabase Auth, além de navegação e validação básica de e-mail/senha.
+
+Por que: antes de trocar rascunhos locais por inserts/updates reais, o app precisa ter uma sessão autenticada para preencher `owner_id = auth.uid()` e respeitar as policies RLS.
+
+Alternativa descartada: implementar writes reais no formulário antes de validar o fluxo de autenticação visualmente.
+
+Impacto: o usuário já consegue testar sessão no navegador; cadastro/edição de imóveis continuam como rascunho local até o próximo PR.
+
+Como reverter: remover `/login`, `AuthPanel`, helpers/testes de auth e o item de navegação, mantendo a preparação de RLS no banco.
+
 ## 2026-06-05 -- Preparar MVP privado com ownership por usuário
 
 O que mudou: `public.properties` passou a ter `owner_id` referenciando `auth.users(id)`, índice por dono e policies RLS para `authenticated` ler/escrever apenas linhas em que `owner_id = auth.uid()`.
