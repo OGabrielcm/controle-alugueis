@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Lock, UserPlus } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AuthMode, getAuthModeCopy, validateAuthForm } from "@/lib/auth-form";
+import { DASHBOARD_HOME } from "@/lib/session-routes";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 
 type AuthStatus = "idle" | "submitting";
@@ -18,6 +20,7 @@ type AuthPanelProps = {
 };
 
 export function AuthPanel({ mode }: AuthPanelProps) {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<AuthStatus>("idle");
@@ -69,7 +72,8 @@ export function AuthPanel({ mode }: AuthPanelProps) {
     }
 
     setPassword("");
-    setMessage("Login validado. Você pode voltar ao dashboard; o próximo PR vai conectar os writes reais com owner_id.");
+    setMessage("Login validado. Redirecionando para o dashboard privado...");
+    router.replace(DASHBOARD_HOME);
   }
 
   return (
@@ -130,9 +134,9 @@ export function AuthPanel({ mode }: AuthPanelProps) {
         {message ? <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-100">{message}</p> : null}
 
         <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm leading-6 text-slate-400">
-          <p className="font-semibold text-slate-200">Fluxo separado do dashboard</p>
+          <p className="font-semibold text-slate-200">Fluxo separado e protegido</p>
           <p className="mt-1">
-            Login e cadastro ficam fora da área operacional. Cadastro não conta como login verificado: confirme o e-mail e entre explicitamente pela página de login.
+            Login e cadastro ficam fora da área operacional. Cadastro não conta como login verificado: confirme o e-mail, entre pela página de login e só então acesse o dashboard privado.
           </p>
         </div>
       </CardContent>

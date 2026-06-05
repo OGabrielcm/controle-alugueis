@@ -3,11 +3,13 @@
 import type { User } from "@supabase/supabase-js";
 import { LogOut, UserCircle } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { LOGIN_PATH, SIGNUP_PATH } from "@/lib/session-routes";
 import { supabase } from "@/lib/supabase";
 
 export function SessionControl() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -37,6 +39,7 @@ export function SessionControl() {
     await supabase.auth.signOut();
     setUser(null);
     setIsSigningOut(false);
+    router.replace(LOGIN_PATH);
   }
 
   if (!user) {
@@ -47,9 +50,9 @@ export function SessionControl() {
           Login e cadastro ficam fora do dashboard operacional.
         </p>
         <div className="mt-3 flex gap-2">
-          <Link className="text-xs font-semibold text-emerald-100 hover:text-white" href="/login">Entrar</Link>
+          <Link className="text-xs font-semibold text-emerald-100 hover:text-white" href={LOGIN_PATH}>Entrar</Link>
           <span className="text-emerald-100/40">•</span>
-          <Link className="text-xs font-semibold text-emerald-100 hover:text-white" href="/cadastro">Cadastrar</Link>
+          <Link className="text-xs font-semibold text-emerald-100 hover:text-white" href={SIGNUP_PATH}>Cadastrar</Link>
         </div>
       </div>
     );
@@ -64,9 +67,14 @@ export function SessionControl() {
           <p className="mt-1 truncate text-xs text-emerald-100/75">{user.email}</p>
         </div>
       </div>
-      <Button className="mt-3 w-full" type="button" variant="secondary" onClick={signOut} disabled={isSigningOut}>
-        <LogOut size={16} /> {isSigningOut ? "Saindo..." : "Sair"}
-      </Button>
+      <button
+        className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-100/60 transition hover:text-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+        type="button"
+        onClick={signOut}
+        disabled={isSigningOut}
+      >
+        <LogOut size={13} /> {isSigningOut ? "Saindo..." : "Sair"}
+      </button>
     </div>
   );
 }
