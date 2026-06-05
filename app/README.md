@@ -67,6 +67,7 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 - `/` redireciona para `/login`; o resumo operacional fica em `/dashboard`.
 - Rotas operacionais (`/dashboard`, `/imoveis`, `/imoveis/novo`, `/importar`) validam sessão no client e voltam para `/login` quando não há usuário ativo.
 - Cadastro não é tratado como login verificado: depois do signup, o app força saída e orienta confirmar o e-mail antes de entrar.
+- O cadastro coleta nome, e-mail, confirmação de e-mail, senha e confirmação de senha; o nome é enviado para os metadados do usuário no Supabase Auth.
 - Cadastro repetido recebe copy segura: Supabase pode retornar sucesso sem reenviar confirmação quando a conta já existe.
 - `/login` oferece link claro para `/recuperar-senha`; essa tela tem campo próprio de e-mail e envia link para `/redefinir-senha` sem revelar se a conta existe.
 - Ao salvar nova senha em `/redefinir-senha`, o app mostra confirmação curta e volta automaticamente para `/login`.

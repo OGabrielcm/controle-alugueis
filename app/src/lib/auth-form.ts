@@ -7,10 +7,40 @@ export type AuthFormFields = {
   password: string;
 };
 
+export type SignupFormFields = AuthFormFields & {
+  fullName: string;
+  emailConfirmation: string;
+  passwordConfirmation: string;
+};
+
 const authFormSchema = z.object({
   email: z.string().trim().email("Informe um e-mail válido."),
   password: z.string().min(8, "Use pelo menos 8 caracteres."),
 });
+
+const signupFormSchema = authFormSchema
+  .extend({
+    fullName: z.string().trim().min(2, "Informe seu nome."),
+    emailConfirmation: z.string().trim().email("Confirme com um e-mail válido."),
+    passwordConfirmation: z.string().min(8, "Confirme a senha com pelo menos 8 caracteres."),
+  })
+  .superRefine((fields, context) => {
+    if (fields.email !== fields.emailConfirmation) {
+      context.addIssue({
+        code: "custom",
+        path: ["emailConfirmation"],
+        message: "A confirmação de e-mail não confere.",
+      });
+    }
+
+    if (fields.password !== fields.passwordConfirmation) {
+      context.addIssue({
+        code: "custom",
+        path: ["passwordConfirmation"],
+        message: "A confirmação de senha não confere.",
+      });
+    }
+  });
 
 export function validateAuthForm(fields: AuthFormFields) {
   const parsed = authFormSchema.safeParse(fields);
@@ -25,6 +55,26 @@ export function validateAuthForm(fields: AuthFormFields) {
   return {
     ok: true as const,
     data: parsed.data,
+  };
+}
+
+export function validateSignupForm(fields: SignupFormFields) {
+  const parsed = signupFormSchema.safeParse(fields);
+
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: parsed.error.issues[0]?.message ?? "Revise os dados de cadastro.",
+    };
+  }
+
+  return {
+    ok: true as const,
+    data: {
+      fullName: parsed.data.fullName,
+      email: parsed.data.email,
+      password: parsed.data.password,
+    },
   };
 }
 

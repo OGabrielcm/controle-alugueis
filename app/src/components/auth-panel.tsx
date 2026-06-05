@@ -14,6 +14,7 @@ import {
   getAuthModeCopy,
   getSignupSuccessMessage,
   validateAuthForm,
+  validateSignupForm,
 } from "@/lib/auth-form";
 import { DASHBOARD_HOME, PASSWORD_RECOVERY_PATH } from "@/lib/session-routes";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
@@ -26,8 +27,11 @@ type AuthPanelProps = {
 
 export function AuthPanel({ mode }: AuthPanelProps) {
   const router = useRouter();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailConfirmation, setEmailConfirmation] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [status, setStatus] = useState<AuthStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,16 +49,23 @@ export function AuthPanel({ mode }: AuthPanelProps) {
       return;
     }
 
-    const validated = validateAuthForm({ email, password });
-    if (!validated.ok) {
-      setError(validated.error);
-      return;
-    }
-
-    setStatus("submitting");
-
     if (mode === "signup") {
-      const response = await supabase.auth.signUp(validated.data);
+      const validated = validateSignupForm({ fullName, email, emailConfirmation, password, passwordConfirmation });
+      if (!validated.ok) {
+        setError(validated.error);
+        return;
+      }
+
+      setStatus("submitting");
+      const response = await supabase.auth.signUp({
+        email: validated.data.email,
+        password: validated.data.password,
+        options: {
+          data: {
+            full_name: validated.data.fullName,
+          },
+        },
+      });
       setStatus("idle");
 
       if (response.error) {
@@ -63,10 +74,21 @@ export function AuthPanel({ mode }: AuthPanelProps) {
       }
 
       await supabase.auth.signOut();
+      setFullName("");
+      setEmailConfirmation("");
       setPassword("");
+      setPasswordConfirmation("");
       setMessage(getSignupSuccessMessage());
       return;
     }
+
+    const validated = validateAuthForm({ email, password });
+    if (!validated.ok) {
+      setError(validated.error);
+      return;
+    }
+
+    setStatus("submitting");
 
     const response = await supabase.auth.signInWithPassword(validated.data);
     setStatus("idle");
@@ -94,6 +116,22 @@ export function AuthPanel({ mode }: AuthPanelProps) {
       </CardHeader>
       <CardContent className="space-y-5">
         <form onSubmit={submitAuth} className="grid gap-4">
+          {mode === "signup" ? (
+            <div className="grid gap-2">
+              <Label htmlFor="fullName">Nome</Label>
+              <Input
+                id="fullName"
+                type="text"
+                autoComplete="name"
+                placeholder="Seu nome completo"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                required
+                minLength={2}
+              />
+            </div>
+          ) : null}
+
           <div className="grid gap-2">
             <Label htmlFor="email">E-mail</Label>
             <Input
@@ -106,6 +144,21 @@ export function AuthPanel({ mode }: AuthPanelProps) {
               required
             />
           </div>
+
+          {mode === "signup" ? (
+            <div className="grid gap-2">
+              <Label htmlFor="emailConfirmation">Confirmar e-mail</Label>
+              <Input
+                id="emailConfirmation"
+                type="email"
+                autoComplete="email"
+                placeholder="repita seu e-mail"
+                value={emailConfirmation}
+                onChange={(event) => setEmailConfirmation(event.target.value)}
+                required
+              />
+            </div>
+          ) : null}
 
           <div className="grid gap-2">
             <Label htmlFor="password">Senha</Label>
@@ -120,6 +173,22 @@ export function AuthPanel({ mode }: AuthPanelProps) {
               minLength={8}
             />
           </div>
+
+          {mode === "signup" ? (
+            <div className="grid gap-2">
+              <Label htmlFor="passwordConfirmation">Confirmar senha</Label>
+              <Input
+                id="passwordConfirmation"
+                type="password"
+                autoComplete="new-password"
+                placeholder="repita sua senha"
+                value={passwordConfirmation}
+                onChange={(event) => setPasswordConfirmation(event.target.value)}
+                required
+                minLength={8}
+              />
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button type="submit" disabled={status !== "idle" || !configured}>
