@@ -9,7 +9,7 @@ O objetivo do projeto é evoluir primeiro o fluxo de produto e domínio, com fun
 - Base em Next.js com App Router, TypeScript e Tailwind CSS.
 - Layout segmentado em múltiplas páginas, evitando um fluxo concentrado em uma única tela.
 - Shell visual com navegação principal.
-- Páginas iniciais para dashboard, imóveis, novo imóvel e importação.
+- Páginas iniciais para dashboard, imóveis, novo imóvel, login e importação.
 - Componentes base de UI inspirados em shadcn/ui.
 - Dados mockados disponíveis para desenvolvimento local.
 - Supabase real configurado para leitura demo segura, com fallback/mock se a conexão falhar.
@@ -63,7 +63,8 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 - `public.properties` tem RLS habilitado.
 - `anon` lê apenas linhas demo/desatualizadas com `source_is_outdated is true` via policy `properties_demo_read_outdated`.
 - `authenticated` pode ler/escrever apenas imóveis em que `owner_id = auth.uid()`.
-- A UI ainda não implementa login nem persistência real do formulário; antes de conectar writes, exigir Supabase Auth e preencher `owner_id` no insert.
+- `/login` já permite login/criação de conta via Supabase Auth no browser.
+- A UI ainda não implementa persistência real do formulário; antes de conectar writes, preencher `owner_id` no insert.
 - Não abrir escrita para `anon`.
 - Use `npm run smoke:supabase` para validar a leitura real sem imprimir secrets.
 
@@ -129,7 +130,7 @@ A sequência abaixo prioriza produto e validação de domínio antes de deploy/p
    - Exibir prévia antes de salvar.
 
 7. **PR de integração real com Supabase**
-   - Implementar Supabase Auth no app.
+   - Validar visualmente o Supabase Auth em `/login`.
    - Conectar escrita real preenchendo `owner_id = auth.uid()`.
    - Armazenar anexos de contrato de forma vinculada ao imóvel.
    - Manter fallback/mock se fizer sentido para desenvolvimento.
