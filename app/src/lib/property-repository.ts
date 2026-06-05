@@ -13,7 +13,7 @@ export type PropertyRepositoryResult = {
   dataSource: PropertyDataSource;
 };
 
-type SupabasePropertyRow = {
+export type SupabasePropertyRow = {
   id: string;
   building_name: string;
   property_address: string | null;
@@ -51,7 +51,7 @@ type SupabasePropertyRow = {
   source_is_outdated: boolean | null;
 };
 
-const propertyColumns = [
+export const propertyColumns = [
   "id",
   "building_name",
   "property_address",
@@ -114,7 +114,7 @@ function optionalString(value: string | null | undefined) {
   return value || undefined;
 }
 
-function mapSupabaseRow(row: SupabasePropertyRow): PropertyRecord {
+export function mapSupabaseRow(row: SupabasePropertyRow): PropertyRecord {
   const mapped = {
     id: row.id,
     buildingName: row.building_name,

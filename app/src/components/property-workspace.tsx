@@ -28,7 +28,9 @@ import {
   emptyPropertyDraft,
   propertyFromDraft,
 } from "@/lib/property-draft";
-import type { PropertyDataSource } from "@/lib/property-repository";
+import { buildPropertyMutationPayload } from "@/lib/property-persistence";
+import { mapSupabaseRow, propertyColumns, type PropertyDataSource, type SupabasePropertyRow } from "@/lib/property-repository";
+import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "controle-alugueis.local-properties.v1";
 
@@ -63,25 +65,69 @@ function loadLocalProperties(fallback: PropertyRecord[]) {
 
 export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady }: PropertyWorkspaceProps) {
   const [managedProperties, setManagedProperties] = useState<PropertyRecord[]>(() => properties);
+  const [currentDataSource, setCurrentDataSource] = useState<PropertyDataSource>(() => dataSource);
   const [activeFilter, setActiveFilter] = useState<PortfolioFilter>("all");
   const [editingDraft, setEditingDraft] = useState<PropertyDraft | null>(null);
   const [newDraft, setNewDraft] = useState<PropertyDraft>(emptyPropertyDraft);
   const [formError, setFormError] = useState<string | null>(null);
+  const [formMessage, setFormMessage] = useState<string | null>(null);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
+    let mounted = true;
+
+    async function hydrateProperties() {
+      if (supabase) {
+        const { data: userData } = await supabase.auth.getUser();
+
+        if (!mounted) return;
+
+        if (userData.user) {
+          setSessionUserId(userData.user.id);
+          const { data, error } = await supabase
+            .from("properties")
+            .select(propertyColumns)
+            .order("building_name", { ascending: true });
+
+          if (!mounted) return;
+
+          if (error) {
+            setFormError(`Não consegui carregar seus imóveis privados (${error.message}).`);
+            setManagedProperties(loadLocalProperties(properties));
+          } else {
+            setManagedProperties(((data ?? []) as unknown as SupabasePropertyRow[]).map(mapSupabaseRow));
+            setCurrentDataSource({
+              label: "Supabase: imóveis do usuário",
+              referenceMonth: "Dados privados autenticados",
+              status: "supabase",
+              note: "Dados carregados com a sessão Supabase; inserts/updates preenchem owner_id = auth.uid().",
+            });
+            window.localStorage.removeItem(STORAGE_KEY);
+          }
+
+          setHydrated(true);
+          return;
+        }
+      }
+
       setManagedProperties(loadLocalProperties(properties));
       setHydrated(true);
-    });
+    }
 
-    return () => window.cancelAnimationFrame(frame);
+    hydrateProperties();
+
+    return () => {
+      mounted = false;
+    };
   }, [properties]);
 
   useEffect(() => {
     if (!hydrated) return;
+    if (sessionUserId) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(managedProperties));
-  }, [hydrated, managedProperties]);
+  }, [hydrated, managedProperties, sessionUserId]);
 
   const summary = useMemo(() => summarizePortfolio(managedProperties), [managedProperties]);
   const agendaReferenceDate = useMemo(() => getTodayDateString(), []);
@@ -95,18 +141,19 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
     [managedProperties, activeFilter],
   );
   const priorities = useMemo(() => getPriorityGroups(managedProperties), [managedProperties]);
-  const hasLocalChanges = hydrated && JSON.stringify(managedProperties) !== JSON.stringify(properties);
+  const hasLocalChanges = !sessionUserId && hydrated && JSON.stringify(managedProperties) !== JSON.stringify(properties);
 
   function resetLocalChanges() {
     setManagedProperties(properties);
     setEditingDraft(null);
     setNewDraft(emptyPropertyDraft);
     setFormError(null);
+    setFormMessage(null);
     setActiveFilter("all");
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
-  function saveDraft(draft: PropertyDraft, mode: "create" | "edit") {
+  async function saveDraft(draft: PropertyDraft, mode: "create" | "edit") {
     const buildingName = draft.buildingName.trim();
     const rentAmount = Number(draft.rentAmount.replace(",", "."));
 
@@ -117,6 +164,40 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
 
     if (!Number.isFinite(rentAmount) || rentAmount < 0) {
       setFormError("Informe um aluguel válido maior ou igual a zero.");
+      return;
+    }
+
+    if (supabase && sessionUserId) {
+      setIsSaving(true);
+      setFormError(null);
+      setFormMessage(null);
+
+      const current = draft.id ? managedProperties.find((property) => property.id === draft.id) : undefined;
+      const payload = buildPropertyMutationPayload(draft, { userId: sessionUserId, mode, current });
+      const request = mode === "create"
+        ? supabase.from("properties").insert(payload).select(propertyColumns).single()
+        : supabase.from("properties").update(payload).eq("id", draft.id ?? "").select(propertyColumns).single();
+      const { data, error } = await request;
+
+      setIsSaving(false);
+
+      if (error) {
+        setFormError(`Não foi possível salvar no Supabase (${error.message}).`);
+        return;
+      }
+
+      const saved = mapSupabaseRow(data as unknown as SupabasePropertyRow);
+      setManagedProperties((currentProperties) => {
+        if (mode === "create") {
+          return [saved, ...currentProperties];
+        }
+
+        return currentProperties.map((property) => (property.id === saved.id ? saved : property));
+      });
+      setEditingDraft(null);
+      setNewDraft(emptyPropertyDraft);
+      setFormError(null);
+      setFormMessage(mode === "create" ? "Imóvel salvo no Supabase com seu usuário como dono." : "Edição salva no Supabase.");
       return;
     }
 
@@ -134,11 +215,12 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
     setEditingDraft(null);
     setNewDraft(emptyPropertyDraft);
     setFormError(null);
+    setFormMessage("Rascunho local salvo neste navegador.");
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader mode={mode} supabaseReady={supabaseReady} dataSource={dataSource} hasLocalChanges={hasLocalChanges} />
+      <PageHeader mode={mode} supabaseReady={supabaseReady} dataSource={currentDataSource} hasLocalChanges={hasLocalChanges} sessionUserId={sessionUserId} />
 
       {hasLocalChanges ? (
         <Card className="border-cyan-300/20 bg-cyan-300/10">
@@ -165,13 +247,17 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           filteredProperties={filteredProperties}
           editingDraft={editingDraft}
           formError={formError}
+          formMessage={formMessage}
+          isSaving={isSaving}
           onEdit={(property) => {
             setEditingDraft(draftFromProperty(property));
             setFormError(null);
+            setFormMessage(null);
           }}
           onCancel={() => {
             setEditingDraft(null);
             setFormError(null);
+            setFormMessage(null);
           }}
           onDraftChange={setEditingDraft}
           onFilterChange={setActiveFilter}
@@ -184,20 +270,23 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           <CardHeader>
             <CardTitle>Novo imóvel</CardTitle>
             <CardDescription>
-              Cadastre um imóvel em rascunho local. Depois da validação visual, conectamos esse fluxo ao Supabase.
+              Cadastre um imóvel privado. Com sessão ativa, o app salva no Supabase preenchendo owner_id com seu usuário.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <PropertyForm
               draft={newDraft}
               formError={formError}
+              formMessage={formMessage}
+              isSaving={isSaving}
               onCancel={() => {
                 setNewDraft(emptyPropertyDraft);
                 setFormError(null);
+                setFormMessage(null);
               }}
               onChange={setNewDraft}
               onSave={(draft) => saveDraft(draft, "create")}
-              saveLabel="Salvar rascunho"
+              saveLabel={sessionUserId ? "Salvar no Supabase" : "Salvar rascunho"}
             />
           </CardContent>
         </Card>
@@ -211,11 +300,13 @@ function PageHeader({
   supabaseReady,
   dataSource,
   hasLocalChanges,
+  sessionUserId,
 }: {
   mode: WorkspaceMode;
   supabaseReady: boolean;
   dataSource: PropertyDataSource;
   hasLocalChanges: boolean;
+  sessionUserId: string | null;
 }) {
   const copy = {
     overview: {
@@ -245,6 +336,7 @@ function PageHeader({
       <div className="flex flex-wrap gap-2">
         <Badge variant={supabaseReady ? "success" : "warning"}>Supabase: {supabaseReady ? "configurado" : "sem .env"}</Badge>
         <Badge variant={dataSource.status === "supabase" ? "success" : "warning"}>{dataSource.status}</Badge>
+        {sessionUserId ? <Badge variant="success">escrita privada</Badge> : null}
         {hasLocalChanges ? <Badge variant="info">rascunho local</Badge> : null}
       </div>
     </header>
@@ -385,6 +477,8 @@ function PropertyList({
   filteredProperties,
   editingDraft,
   formError,
+  formMessage,
+  isSaving,
   onCancel,
   onDraftChange,
   onEdit,
@@ -396,6 +490,8 @@ function PropertyList({
   filteredProperties: PropertyRecord[];
   editingDraft: PropertyDraft | null;
   formError: string | null;
+  formMessage: string | null;
+  isSaving: boolean;
   onCancel: () => void;
   onDraftChange: (draft: PropertyDraft) => void;
   onEdit: (property: PropertyRecord) => void;
@@ -417,6 +513,8 @@ function PropertyList({
             <PropertyForm
               draft={editingDraft}
               formError={formError}
+              formMessage={formMessage}
+              isSaving={isSaving}
               onCancel={onCancel}
               onChange={onDraftChange}
               onSave={onSave}
@@ -500,6 +598,8 @@ function PropertyList({
 function PropertyForm({
   draft,
   formError,
+  formMessage,
+  isSaving,
   onCancel,
   onChange,
   onSave,
@@ -507,6 +607,8 @@ function PropertyForm({
 }: {
   draft: PropertyDraft;
   formError: string | null;
+  formMessage: string | null;
+  isSaving: boolean;
   onCancel: () => void;
   onChange: (draft: PropertyDraft) => void;
   onSave: (draft: PropertyDraft) => void;
@@ -607,10 +709,11 @@ function PropertyForm({
       </section>
 
       {formError ? <p className="text-sm text-red-200">{formError}</p> : null}
+      {formMessage ? <p className="text-sm text-emerald-200">{formMessage}</p> : null}
 
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => onSave(draft)}>{saveLabel}</Button>
-        <Button variant="secondary" onClick={onCancel}>Cancelar</Button>
+        <Button onClick={() => onSave(draft)} disabled={isSaving}>{isSaving ? "Salvando..." : saveLabel}</Button>
+        <Button variant="secondary" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
       </div>
     </div>
   );
