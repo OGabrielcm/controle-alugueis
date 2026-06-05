@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
 import {
   getAuthModeCopy,
+  getPasswordRecoveryPageCopy,
   getPasswordResetSuccessMessage,
   getSignupSuccessMessage,
   validateAuthForm,
@@ -77,5 +78,14 @@ describe("auth flow messages", () => {
     assert.match(message, /Se existir uma conta/);
     assert.match(message, /recuperação/);
     assert.match(message, /caixa de entrada/);
+  });
+
+  it("explica a página dedicada de solicitação de recuperação", () => {
+    const copy = getPasswordRecoveryPageCopy();
+
+    assert.match(copy.title, /Recuperar senha/);
+    assert.match(copy.description, /e-mail cadastrado/);
+    assert.match(copy.submitLabel, /Enviar link/);
+    assert.match(copy.successMessage, /spam/);
   });
 });

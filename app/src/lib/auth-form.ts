@@ -52,6 +52,15 @@ export function getPasswordResetSuccessMessage() {
   return "Se existir uma conta para esse e-mail, enviaremos um link de recuperação. Confira a caixa de entrada e o spam.";
 }
 
+export function getPasswordRecoveryPageCopy() {
+  return {
+    title: "Recuperar senha",
+    description: "Informe o e-mail cadastrado para receber um link seguro de redefinição de senha.",
+    submitLabel: "Enviar link de recuperação",
+    successMessage: getPasswordResetSuccessMessage(),
+  };
+}
+
 export function getAuthModeCopy(mode: AuthMode) {
   if (mode === "signup") {
     return {
