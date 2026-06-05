@@ -2,9 +2,16 @@
 create table if not exists public.properties (
   id uuid primary key default gen_random_uuid(),
   building_name text not null,
+  property_address text,
   is_rented boolean not null default false,
   tenant_name text,
+  tenant_contact text,
+  contract_start_date date,
   contract_end_date date,
+  has_annual_adjustment boolean not null default false,
+  rent_adjustment_base_date date,
+  rent_adjustment_index text,
+  contract_notes text,
   payment_due_date date,
   is_rent_paid boolean not null default false,
   rent_amount numeric(12,2) not null default 0 check (rent_amount >= 0),
@@ -33,5 +40,17 @@ create table if not exists public.properties (
 
 alter table public.properties enable row level security;
 
--- MVP solo: mantenha políticas fechadas até autenticação ser definida.
--- Exemplo futuro: criar policies por usuário/proprietário.
+grant select on table public.properties to anon;
+grant select, insert, update, delete on table public.properties to authenticated;
+grant select, insert, update, delete on table public.properties to service_role;
+
+drop policy if exists properties_demo_read_outdated on public.properties;
+create policy properties_demo_read_outdated
+on public.properties
+for select
+to anon
+using (source_is_outdated is true);
+
+-- MVP solo: anon lê apenas seeds/demo desatualizados marcados com source_is_outdated.
+-- Escritas reais devem esperar autenticação/owner_id antes de abrir policies de insert/update/delete.
+-- Exemplo futuro: criar policies por usuário/proprietário usando auth.uid().

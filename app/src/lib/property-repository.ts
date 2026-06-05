@@ -16,9 +16,16 @@ export type PropertyRepositoryResult = {
 type SupabasePropertyRow = {
   id: string;
   building_name: string;
+  property_address: string | null;
   is_rented: boolean | null;
   tenant_name: string | null;
+  tenant_contact: string | null;
+  contract_start_date: string | null;
   contract_end_date: string | null;
+  has_annual_adjustment: boolean | null;
+  rent_adjustment_base_date: string | null;
+  rent_adjustment_index: string | null;
+  contract_notes: string | null;
   payment_due_date: string | null;
   is_rent_paid: boolean | null;
   rent_amount: number | string | null;
@@ -46,9 +53,16 @@ type SupabasePropertyRow = {
 const propertyColumns = [
   "id",
   "building_name",
+  "property_address",
   "is_rented",
   "tenant_name",
+  "tenant_contact",
+  "contract_start_date",
   "contract_end_date",
+  "has_annual_adjustment",
+  "rent_adjustment_base_date",
+  "rent_adjustment_index",
+  "contract_notes",
   "payment_due_date",
   "is_rent_paid",
   "rent_amount",
@@ -102,9 +116,16 @@ function mapSupabaseRow(row: SupabasePropertyRow): PropertyRecord {
   const mapped = {
     id: row.id,
     buildingName: row.building_name,
+    propertyAddress: optionalString(row.property_address),
     isRented: row.is_rented ?? false,
     tenantName: optionalString(row.tenant_name),
+    tenantContact: optionalString(row.tenant_contact),
+    contractStartDate: optionalString(row.contract_start_date),
     contractEndDate: optionalString(row.contract_end_date),
+    hasAnnualAdjustment: row.has_annual_adjustment ?? false,
+    rentAdjustmentBaseDate: optionalString(row.rent_adjustment_base_date),
+    rentAdjustmentIndex: optionalString(row.rent_adjustment_index),
+    contractNotes: optionalString(row.contract_notes),
     paymentDueDate: optionalString(row.payment_due_date),
     isRentPaid: row.is_rent_paid ?? false,
     rentAmount: toNumber(row.rent_amount) ?? 0,
