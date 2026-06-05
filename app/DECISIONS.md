@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-06-05 -- Separar autenticação do dashboard operacional
+
+O que mudou: `/login` e `/cadastro` viraram páginas próprias fora do shell do dashboard, o item de login saiu da navegação principal e o dashboard ganhou controle de sessão com links de entrada/cadastro ou botão `Sair` quando há usuário autenticado.
+
+Por que: validação humana mostrou que login/cadastro dentro do dashboard confundia o fluxo e que faltava uma saída visível da sessão.
+
+Alternativa descartada: manter um único `AuthPanel` alternando login/cadastro dentro da área operacional.
+
+Impacto: cadastro não é tratado como login verificado; após signup o app força saída e orienta confirmar o e-mail antes de login explícito.
+
+Como reverter: remover `/cadastro`, voltar `AuthPanel` para modo alternável e recolocar auth dentro do shell principal.
+
 ## 2026-06-05 -- Supabase Auth como primeiro passo de escrita privada
 
 O que mudou: foi adicionada a rota `/login` com formulário client-side para login/criação de conta via Supabase Auth, além de navegação e validação básica de e-mail/senha.
