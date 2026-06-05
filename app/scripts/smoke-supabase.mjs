@@ -37,6 +37,7 @@ endpoint.searchParams.set(
     "rent_adjustment_base_date",
     "rent_adjustment_index",
     "contract_notes",
+    "owner_id",
     "source_is_outdated",
   ].join(","),
 );
@@ -101,6 +102,8 @@ console.log(
         Object.prototype.hasOwnProperty.call(row, "contract_start_date") &&
         Object.prototype.hasOwnProperty.call(row, "has_annual_adjustment")
       ),
+      schemaHasOwnerId: body.every((row) => Object.prototype.hasOwnProperty.call(row, "owner_id")),
+      demoRowsHaveNoOwner: body.every((row) => row.owner_id === null),
     },
     null,
     2,

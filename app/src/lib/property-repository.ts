@@ -43,6 +43,7 @@ type SupabasePropertyRow = {
   garbage_fee_amount: number | string | null;
   laudemio_amount: number | string | null;
   contract_url: string | null;
+  owner_id: string | null;
   receiving_bank: string | null;
   has_rent_deposit: boolean | null;
   source_label: string | null;
@@ -80,6 +81,7 @@ const propertyColumns = [
   "garbage_fee_amount",
   "laudemio_amount",
   "contract_url",
+  "owner_id",
   "receiving_bank",
   "has_rent_deposit",
   "source_label",
