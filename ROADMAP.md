@@ -39,6 +39,8 @@ Critério: usuário consegue criar/editar imóvel manualmente sem concentrar tud
 Critério: app mostra pendências, dados incompletos e pontos de atenção por imóvel.
 - [AFK] Implementar regras iniciais de status e alertas: aluguel pendente, dados incompletos, banco ausente, manutenção alta, imprevistos e caução. **Concluído em 2026-06-04.**
 - [AFK] Criar agenda contratual ativa com vencimentos, reajustes anuais e dados contratuais faltantes. **Concluído em 2026-06-04.**
+- [AFK] Preparar upload de contrato por imóvel via Supabase Storage com PDF/DOCX e área de arrastar/soltar. **Ajustado após revisão manual em 2026-06-05.**
+- [HITL] Timing Supabase: após validar anexos localmente e navegação multipágina, configurar projeto Supabase real, aplicar `schema.sql`/`storage.sql`, testar leitura de 2–3 imóveis e só então ativar escrita/anexos persistidos.
 - [HITL] Validar datas reais e regras de cobrança antes de tratar vencimento/contrato como operacional.
 - [AFK] Futuro: transformar a agenda contratual em notificações por e-mail quando houver persistência real e datas atuais.
 
@@ -49,5 +51,6 @@ Critério: usuário envia CSV/XLSX e pré-visualiza os dados antes de importar.
 
 ## Fase 6 — Deploy Vercel + Supabase real [HITL]
 Critério: app acessível por URL Vercel com dados persistidos.
-- [AFK] Preparar env vars e documentação.
-- [HITL] Configurar credenciais e validar produção.
+- [HITL] Conectar Supabase primeiro: projeto, env vars locais, `schema.sql`, `seed.sql`, `storage.sql`, leitura real e policies/RLS mínimas.
+- [AFK] Depois preparar Vercel: env vars, build, preview deploy e documentação.
+- [HITL] Validar produção antes de usar dados reais/sensíveis.

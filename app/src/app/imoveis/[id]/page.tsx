@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
+import { ContractAttachmentPanel } from "@/components/contract-attachment-panel";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { findPropertyById } from "@/lib/property-detail";
 import { getProperties } from "@/lib/property-repository";
+import { hasSupabaseConfig } from "@/lib/supabase";
 import {
   formatCurrency,
   formatDate,
@@ -105,7 +107,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
         </Card>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid gap-4 xl:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Contrato</CardTitle>
@@ -123,6 +125,12 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
             </div>
           </CardContent>
         </Card>
+
+        <ContractAttachmentPanel
+          propertyId={property.id}
+          initialContractUrl={property.contractUrl}
+          supabaseReady={hasSupabaseConfig()}
+        />
 
         <Card>
           <CardHeader>

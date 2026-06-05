@@ -1,5 +1,21 @@
 # DECISIONS — Controle de Aluguéis
 
+## 2026-06-05 -- Revisão manual de anexos e validação multipágina
+
+O que mudou: feedback manual aprovou a navegação multipágina atual como melhor que a experiência anterior em página única; o fluxo de anexo deve aceitar PDF e DOCX, além de permitir arrastar/soltar sobre uma área de upload.
+Por que: o uso real de contratos pode vir em DOCX, e o fluxo de upload precisa ser mais natural antes de conectar Supabase real.
+Alternativa descartada: manter apenas seleção manual de PDF; isso bloqueia documentos editáveis e deixa a UX de anexo limitada.
+Impacto: o próximo gate técnico é configurar Supabase após validar esse fluxo localmente; só então persistir URLs/paths de anexos e habilitar escrita real.
+Como reverter: voltar as alterações em `contract-attachment.ts`, `contract-attachment-panel.tsx`, `contract-attachment.test.ts`, `supabase/storage.sql`, `SDD.md` e `ROADMAP.md`.
+
+## 2026-06-04 -- Upload de contrato via Supabase Storage
+
+O que mudou: adicionei um painel de anexo na página de detalhe do imóvel, validação de PDF até 10MB, helper de upload para o bucket `property-contracts` e script `supabase/storage.sql`.
+Por que: o produto precisa começar a vincular contratos físicos/digitais aos imóveis antes de evoluir alertas, reajustes e persistência completa.
+Alternativa descartada: salvar apenas uma URL manual no formulário; isso não valida o fluxo real de anexo nem prepara o Storage.
+Impacto: com Supabase configurado, o usuário pode enviar o PDF para Storage. Como a escrita real de `properties.contract_url` ainda não está implementada, o link fica salvo como rascunho local no navegador.
+Como reverter: remover `contract-attachment.ts`, `contract-attachment-panel.tsx`, `contract-attachment.test.ts`, `supabase/storage.sql` e retirar o painel da rota `/imoveis/[id]`.
+
 ## 2026-06-04 -- Agenda contratual ativa no dashboard
 
 O que mudou: substituí o card conceitual de agenda futura por regras calculadas em `src/lib/contract-agenda.ts`, cobrindo contrato vencido/próximo, próximo reajuste anual e dados contratuais faltantes.
