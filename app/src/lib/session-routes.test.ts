@@ -7,9 +7,10 @@ describe("session route boundaries", () => {
     assert.equal(DASHBOARD_HOME, "/dashboard");
   });
 
-  it("trata login e cadastro como rotas públicas de autenticação", () => {
+  it("trata login, cadastro e redefinição como rotas públicas de autenticação", () => {
     assert.equal(isAuthRoute("/login"), true);
     assert.equal(isAuthRoute("/cadastro"), true);
+    assert.equal(isAuthRoute("/redefinir-senha"), true);
   });
 
   it("não trata a raiz como rota operacional para evitar dashboard direto", () => {

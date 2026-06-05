@@ -1,5 +1,17 @@
 # Decisions
 
+## 2026-06-05 -- Recuperação de senha e copy segura de signup
+
+O que mudou: `/login` ganhou ação “Esqueci minha senha”, o link de recuperação aponta para `/redefinir-senha`, e o sucesso de cadastro passou a explicar que signup repetido pode não reenviar confirmação quando a conta já existe.
+
+Por que: validação humana confirmou login real com conta existente e os logs Supabase mostraram `user_repeated_signup`, caso em que a API retorna sucesso sem novo e-mail de confirmação.
+
+Alternativa descartada: continuar mostrando “Conta criada” de forma absoluta ou revelar se uma conta existe pelo fluxo de recuperação.
+
+Impacto: a UX fica mais honesta e segura; recuperação não revela existência da conta e cadastro orienta login/recuperação quando o e-mail já estava registrado.
+
+Como reverter: remover `/redefinir-senha`, o botão de recuperação em `/login` e restaurar a mensagem simples de signup.
+
 ## 2026-06-05 -- Login como primeira entrada e dashboard protegido
 
 O que mudou: `/` passou a redirecionar para `/login`, o resumo operacional foi movido para `/dashboard`, as rotas operacionais validam sessão Supabase no client antes de renderizar o shell e o logout virou ação discreta no controle de sessão.
