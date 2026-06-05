@@ -21,7 +21,7 @@ export default function RedefinirSenhaPage() {
         <aside className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-sm leading-6 text-slate-400">
           <p className="font-semibold text-white">Quando usar</p>
           <p className="mt-2">
-            Peça a recuperação em `/login` pelo link “Esqueci minha senha”. Depois abra o e-mail recebido e defina uma nova senha aqui.
+            Peça a recuperação em `/recuperar-senha`. Depois abra o e-mail recebido e defina uma nova senha aqui. Ao salvar, o app volta automaticamente para o login.
           </p>
           <p className="mt-3">
             Se a conta não existir, o app não revela isso por segurança; confira se digitou o e-mail correto.

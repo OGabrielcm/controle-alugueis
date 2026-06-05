@@ -1,74 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Lock, UserPlus } from "lucide-react";
+import { MailQuestion } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  type AuthMode,
-  getAuthModeCopy,
-  getSignupSuccessMessage,
-  validateAuthForm,
-} from "@/lib/auth-form";
-import { DASHBOARD_HOME, PASSWORD_RECOVERY_PATH } from "@/lib/session-routes";
+import { getPasswordRecoveryPageCopy, validatePasswordResetEmail } from "@/lib/auth-form";
+import { LOGIN_PATH, PASSWORD_RESET_PATH } from "@/lib/session-routes";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 
-type AuthStatus = "idle" | "submitting";
-
-type AuthPanelProps = {
-  mode: AuthMode;
-};
-
-export function AuthPanel({ mode }: AuthPanelProps) {
-  const router = useRouter();
+export function PasswordRecoveryPanel() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<AuthStatus>("idle");
+  const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const copy = getAuthModeCopy(mode);
   const configured = hasSupabaseConfig();
-  const alternateHref = mode === "login" ? "/cadastro" : "/login";
+  const copy = getPasswordRecoveryPageCopy();
 
-  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+  async function submitPasswordRecovery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setMessage(null);
 
     if (!supabase) {
-      setError("Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY antes de usar autenticação.");
+      setError("Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY antes de usar recuperação de senha.");
       return;
     }
 
-    const validated = validateAuthForm({ email, password });
+    const validated = validatePasswordResetEmail(email);
     if (!validated.ok) {
       setError(validated.error);
       return;
     }
 
     setStatus("submitting");
-
-    if (mode === "signup") {
-      const response = await supabase.auth.signUp(validated.data);
-      setStatus("idle");
-
-      if (response.error) {
-        setError(response.error.message);
-        return;
-      }
-
-      await supabase.auth.signOut();
-      setPassword("");
-      setMessage(getSignupSuccessMessage());
-      return;
-    }
-
-    const response = await supabase.auth.signInWithPassword(validated.data);
+    const response = await supabase.auth.resetPasswordForEmail(validated.email, {
+      redirectTo: `${window.location.origin}${PASSWORD_RESET_PATH}`,
+    });
     setStatus("idle");
 
     if (response.error) {
@@ -76,9 +47,7 @@ export function AuthPanel({ mode }: AuthPanelProps) {
       return;
     }
 
-    setPassword("");
-    setMessage("Login validado. Redirecionando para o dashboard privado...");
-    router.replace(DASHBOARD_HOME);
+    setMessage(copy.successMessage);
   }
 
   return (
@@ -93,11 +62,11 @@ export function AuthPanel({ mode }: AuthPanelProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <form onSubmit={submitAuth} className="grid gap-4">
+        <form onSubmit={submitPasswordRecovery} className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="recovery-email">E-mail</Label>
             <Input
-              id="email"
+              id="recovery-email"
               type="email"
               autoComplete="email"
               placeholder="voce@email.com"
@@ -107,50 +76,27 @@ export function AuthPanel({ mode }: AuthPanelProps) {
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              placeholder="Mínimo 8 caracteres"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={8}
-            />
-          </div>
-
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button type="submit" disabled={status !== "idle" || !configured}>
-              {mode === "signup" ? <UserPlus size={16} /> : <Lock size={16} />}
+              <MailQuestion size={16} />
               {status === "submitting" ? "Enviando..." : copy.submitLabel}
             </Button>
             <Link
-              href={alternateHref}
+              href={LOGIN_PATH}
               className="inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
             >
-              {copy.alternateLabel}
+              Voltar para login
             </Link>
           </div>
-
-          {mode === "login" ? (
-            <Link
-              href={PASSWORD_RECOVERY_PATH}
-              className="w-fit text-left text-xs font-medium text-slate-400 underline-offset-4 transition hover:text-emerald-200 hover:underline"
-            >
-              Esqueci minha senha: recuperar por e-mail
-            </Link>
-          ) : null}
         </form>
 
         {error ? <p className="rounded-xl border border-red-300/20 bg-red-400/10 p-3 text-sm text-red-100">{error}</p> : null}
         {message ? <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-100">{message}</p> : null}
 
         <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm leading-6 text-slate-400">
-          <p className="font-semibold text-slate-200">Fluxo separado e protegido</p>
+          <p className="font-semibold text-slate-200">Sem depender do login</p>
           <p className="mt-1">
-            Login e cadastro ficam fora da área operacional. Cadastro não conta como login verificado: confirme o e-mail, entre pela página de login e só então acesse o dashboard privado.
+            Esta tela tem campo próprio de e-mail. Por segurança, a resposta não confirma se a conta existe; confira entrada e spam.
           </p>
         </div>
       </CardContent>

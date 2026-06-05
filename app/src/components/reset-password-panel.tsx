@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { KeyRound } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { LOGIN_PATH } from "@/lib/session-routes";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 
 export function ResetPasswordPanel() {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -43,7 +45,8 @@ export function ResetPasswordPanel() {
     }
 
     setPassword("");
-    setMessage("Senha redefinida. Volte para o login e entre com a nova senha.");
+    setMessage("Senha redefinida. Redirecionando para o login...");
+    window.setTimeout(() => router.replace(LOGIN_PATH), 1200);
   }
 
   return (
@@ -93,7 +96,7 @@ export function ResetPasswordPanel() {
         <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm leading-6 text-slate-400">
           <p className="font-semibold text-slate-200">Acesso pelo link de recuperação</p>
           <p className="mt-1">
-            Se você abriu esta página direto sem usar o link do e-mail, peça uma nova recuperação na tela de login.
+            Se você abriu esta página direto sem usar o link do e-mail, peça uma nova recuperação na tela dedicada de recuperação.
           </p>
         </div>
       </CardContent>

@@ -1,4 +1,16 @@
-# Decisions
+# Decisões do projeto
+
+## 2026-06-05 -- Página dedicada para solicitar recuperação de senha
+
+O que mudou: `/login` deixou de enviar recuperação diretamente pelo e-mail digitado no formulário e passou a apontar para `/recuperar-senha`, que tem campo próprio, copy segura e redireciona o link Supabase para `/redefinir-senha`.
+
+Por que: validação humana mostrou que não era óbvio precisar preencher o e-mail em `/login` antes de clicar em “Esqueci minha senha”.
+
+Alternativa descartada: manter a ação inline no login e apenas melhorar a mensagem de erro quando o campo estivesse vazio.
+
+Impacto: a recuperação fica explícita, não revela se a conta existe, orienta verificar entrada/spam e, após salvar nova senha, `/redefinir-senha` retorna automaticamente para `/login`.
+
+Como reverter: remover `/recuperar-senha`, voltar o botão inline em `/login` e apontar a recuperação diretamente para `/redefinir-senha`.
 
 ## 2026-06-05 -- Recuperação de senha e copy segura de signup
 
