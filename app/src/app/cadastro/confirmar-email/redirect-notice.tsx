@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const REDIRECT_SECONDS = 6;
+const REDIRECT_SECONDS = 10;
 
 export function LoginRedirectNotice() {
   const router = useRouter();

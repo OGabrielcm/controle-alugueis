@@ -80,11 +80,16 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         propertyId,
         supabaseClient: supabase,
       });
+      const { error: updateError } = await supabase.from("properties").update({ contract_url: result.publicUrl }).eq("id", propertyId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
 
       saveLocalAttachment(propertyId, result.publicUrl);
       setContractUrl(result.publicUrl);
       setSelectedFile(null);
-      setStatusMessage("Contrato enviado. Link salvo como rascunho local deste imóvel.");
+      setStatusMessage("Contrato enviado e registrado no imóvel.");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Não foi possível enviar o contrato.");
       setStatusMessage(null);
@@ -109,7 +114,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
           <p>
             Bucket esperado: <span className="font-mono text-slate-200">{CONTRACT_ATTACHMENTS_BUCKET}</span>
           </p>
-          <p className="mt-2">Limite atual: PDF ou DOCX de até 10MB. O link fica salvo localmente até a persistência real do imóvel no Supabase.</p>
+          <p className="mt-2">Limite atual: PDF ou DOCX de até 10MB. O envio registra o link no imóvel salvo no Supabase.</p>
         </div>
 
         {contractUrl ? (
