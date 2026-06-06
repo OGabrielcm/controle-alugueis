@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -13,7 +13,6 @@ import {
   type PropertyRecord,
   filterProperties,
   formatCurrency,
-  formatDate,
   getFilterOptions,
   getPriorityGroups,
   getPropertyAlerts,
@@ -22,6 +21,12 @@ import {
   summarizePortfolio,
 } from "@/lib/rentals";
 import { type ContractAgenda, buildContractAgenda, getTodayDateString } from "@/lib/contract-agenda";
+import {
+  CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES,
+  getContractFileValidationError,
+  uploadContractAttachment,
+} from "@/lib/contract-attachment";
+import { buildMonthlyDueDate, formatMonthlyDueDay, getMonthlyDueDay } from "@/lib/monthly-due-date";
 import {
   type PropertyDraft,
   draftFromProperty,
@@ -64,8 +69,17 @@ function loadLocalProperties(fallback: PropertyRecord[]) {
 }
 
 export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady }: PropertyWorkspaceProps) {
-  const [managedProperties, setManagedProperties] = useState<PropertyRecord[]>(() => properties);
-  const [currentDataSource, setCurrentDataSource] = useState<PropertyDataSource>(() => dataSource);
+  const [managedProperties, setManagedProperties] = useState<PropertyRecord[]>(() => (supabaseReady ? [] : properties));
+  const [currentDataSource, setCurrentDataSource] = useState<PropertyDataSource>(() =>
+    supabaseReady
+      ? {
+          label: "Carregando sessão",
+          referenceMonth: "Aguardando autenticação",
+          status: "supabase",
+          note: "Validando sessão antes de mostrar imóveis para evitar piscar dados demo/mockados.",
+        }
+      : dataSource,
+  );
   const [activeFilter, setActiveFilter] = useState<PortfolioFilter>("all");
   const [editingDraft, setEditingDraft] = useState<PropertyDraft | null>(null);
   const [newDraft, setNewDraft] = useState<PropertyDraft>(emptyPropertyDraft);
@@ -95,7 +109,13 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
 
           if (error) {
             setFormError(`Não consegui carregar seus imóveis privados (${error.message}).`);
-            setManagedProperties(loadLocalProperties(properties));
+            setManagedProperties([]);
+            setCurrentDataSource({
+              label: "Supabase: erro ao carregar imóveis privados",
+              referenceMonth: "Dados privados autenticados",
+              status: "fallback",
+              note: "Não mostrei dados demo/mockados para uma sessão autenticada com erro de leitura.",
+            });
           } else {
             setManagedProperties(((data ?? []) as unknown as SupabasePropertyRow[]).map(mapSupabaseRow));
             setCurrentDataSource({
@@ -113,6 +133,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       }
 
       setManagedProperties(loadLocalProperties(properties));
+      setCurrentDataSource(dataSource);
       setHydrated(true);
     }
 
@@ -121,7 +142,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
     return () => {
       mounted = false;
     };
-  }, [properties]);
+  }, [dataSource, properties]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -153,7 +174,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
-  async function saveDraft(draft: PropertyDraft, mode: "create" | "edit") {
+  async function saveDraft(draft: PropertyDraft, mode: "create" | "edit", contractFile?: File | null) {
     const buildingName = draft.buildingName.trim();
     const rentAmount = Number(draft.rentAmount.replace(",", "."));
 
@@ -172,6 +193,13 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       setFormError(null);
       setFormMessage(null);
 
+      const fileValidationError = contractFile ? getContractFileValidationError(contractFile) : undefined;
+      if (fileValidationError) {
+        setIsSaving(false);
+        setFormError(fileValidationError);
+        return;
+      }
+
       const current = draft.id ? managedProperties.find((property) => property.id === draft.id) : undefined;
       const payload = buildPropertyMutationPayload(draft, { userId: sessionUserId, mode, current });
       const request = mode === "create"
@@ -179,14 +207,49 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
         : supabase.from("properties").update(payload).eq("id", draft.id ?? "").select(propertyColumns).single();
       const { data, error } = await request;
 
-      setIsSaving(false);
-
       if (error) {
+        setIsSaving(false);
         setFormError(`Não foi possível salvar no Supabase (${error.message}).`);
         return;
       }
 
-      const saved = mapSupabaseRow(data as unknown as SupabasePropertyRow);
+      let saved = mapSupabaseRow(data as unknown as SupabasePropertyRow);
+
+      if (contractFile) {
+        try {
+          const uploadResult = await uploadContractAttachment({ file: contractFile, propertyId: saved.id, supabaseClient: supabase });
+          const { data: updatedData, error: updateError } = await supabase
+            .from("properties")
+            .update({ contract_url: uploadResult.publicUrl })
+            .eq("id", saved.id)
+            .select(propertyColumns)
+            .single();
+
+          if (updateError) {
+            throw new Error(updateError.message);
+          }
+
+          saved = mapSupabaseRow(updatedData as unknown as SupabasePropertyRow);
+        } catch (uploadError) {
+          setIsSaving(false);
+          setManagedProperties((currentProperties) => {
+            if (mode === "create") {
+              return [saved, ...currentProperties];
+            }
+
+            return currentProperties.map((property) => (property.id === saved.id ? saved : property));
+          });
+          setFormError(
+            uploadError instanceof Error
+              ? `Imóvel salvo, mas o anexo não foi enviado (${uploadError.message}).`
+              : "Imóvel salvo, mas o anexo não foi enviado.",
+          );
+          setFormMessage("Você pode tentar anexar novamente na edição ou no detalhe do imóvel.");
+          return;
+        }
+      }
+
+      setIsSaving(false);
       setManagedProperties((currentProperties) => {
         if (mode === "create") {
           return [saved, ...currentProperties];
@@ -197,7 +260,13 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       setEditingDraft(null);
       setNewDraft(emptyPropertyDraft);
       setFormError(null);
-      setFormMessage(mode === "create" ? "Imóvel salvo no Supabase com seu usuário como dono." : "Edição salva no Supabase.");
+      setFormMessage(
+        contractFile
+          ? "Imóvel e contrato salvos no Supabase."
+          : mode === "create"
+            ? "Imóvel salvo no Supabase com seu usuário como dono."
+            : "Edição salva no Supabase.",
+      );
       return;
     }
 
@@ -261,7 +330,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           }}
           onDraftChange={setEditingDraft}
           onFilterChange={setActiveFilter}
-          onSave={(draft) => saveDraft(draft, "edit")}
+          onSave={(draft, contractFile) => saveDraft(draft, "edit", contractFile)}
         />
       ) : null}
 
@@ -285,7 +354,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
                 setFormMessage(null);
               }}
               onChange={setNewDraft}
-              onSave={(draft) => saveDraft(draft, "create")}
+              onSave={(draft, contractFile) => saveDraft(draft, "create", contractFile)}
               saveLabel={sessionUserId ? "Salvar no Supabase" : "Salvar rascunho"}
             />
           </CardContent>
@@ -496,7 +565,7 @@ function PropertyList({
   onDraftChange: (draft: PropertyDraft) => void;
   onEdit: (property: PropertyRecord) => void;
   onFilterChange: (filter: PortfolioFilter) => void;
-  onSave: (draft: PropertyDraft) => void;
+  onSave: (draft: PropertyDraft, contractFile?: File | null) => void;
 }) {
   return (
     <Card>
@@ -571,7 +640,7 @@ function PropertyList({
                     </td>
                     <td className="px-4 py-4 text-slate-300">{property.tenantName ?? "Não informado"}</td>
                     <td className="px-4 py-4 text-slate-300">
-                      <div>{formatDate(property.paymentDueDate)}</div>
+                      <div>{formatMonthlyDueDay(property.paymentDueDate)}</div>
                       <div className="text-xs text-slate-500">{property.isRentPaid ? "Pago" : "Pendente"}</div>
                     </td>
                     <td className="px-4 py-4 text-slate-100">{formatCurrency(property.rentAmount)}</td>
@@ -611,9 +680,75 @@ function PropertyForm({
   isSaving: boolean;
   onCancel: () => void;
   onChange: (draft: PropertyDraft) => void;
-  onSave: (draft: PropertyDraft) => void;
+  onSave: (draft: PropertyDraft, contractFile?: File | null) => void;
   saveLabel: string;
 }) {
+  const paymentDueDay = getMonthlyDueDay(draft.paymentDueDate);
+  const dateInputClassName = "text-slate-100 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:bg-emerald-300 [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-100";
+  const selectClassName = "min-h-10 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-300/40 focus:ring-2 focus:ring-emerald-300/20";
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [adjustmentRule, setAdjustmentRule] = useState<"none" | "contract-start-year" | "contract-end" | "custom-period" | "custom-date">(
+    draft.hasAnnualAdjustment ? "custom-date" : "none",
+  );
+  const [customAdjustmentMonths, setCustomAdjustmentMonths] = useState("12");
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [contractFileError, setContractFileError] = useState<string | null>(null);
+  const [isDraggingContract, setIsDraggingContract] = useState(false);
+  const adjustmentEnabled = adjustmentRule !== "none" && draft.hasAnnualAdjustment;
+
+  function updateMonthlyDueDay(value: string) {
+    onChange({ ...draft, paymentDueDate: buildMonthlyDueDate(value, draft.contractStartDate) });
+  }
+
+  function addMonthsToContractStart(monthsValue: string) {
+    if (!draft.contractStartDate) return "";
+
+    const parsedMonths = Number.parseInt(monthsValue, 10);
+    if (!Number.isFinite(parsedMonths) || parsedMonths < 1) return "";
+
+    const start = new Date(`${draft.contractStartDate}T00:00:00`);
+    start.setMonth(start.getMonth() + parsedMonths);
+    return start.toISOString().slice(0, 10);
+  }
+
+  function updateAdjustmentRule(option: "none" | "contract-start-year" | "contract-end" | "custom-period" | "custom-date") {
+    setAdjustmentRule(option);
+
+    if (option === "none") {
+      onChange({ ...draft, hasAnnualAdjustment: false, rentAdjustmentBaseDate: "", rentAdjustmentIndex: "" });
+      return;
+    }
+
+    if (option === "contract-start-year") {
+      const baseDate = addMonthsToContractStart("12");
+      onChange({ ...draft, hasAnnualAdjustment: true, rentAdjustmentBaseDate: baseDate });
+      return;
+    }
+
+    if (option === "contract-end") {
+      onChange({ ...draft, hasAnnualAdjustment: true, rentAdjustmentBaseDate: draft.contractEndDate });
+      return;
+    }
+
+    if (option === "custom-period") {
+      const baseDate = addMonthsToContractStart(customAdjustmentMonths);
+      onChange({ ...draft, hasAnnualAdjustment: true, rentAdjustmentBaseDate: baseDate });
+      return;
+    }
+
+    onChange({ ...draft, hasAnnualAdjustment: true });
+  }
+
+  function updateCustomAdjustmentMonths(value: string) {
+    setCustomAdjustmentMonths(value);
+    onChange({ ...draft, hasAnnualAdjustment: true, rentAdjustmentBaseDate: addMonthsToContractStart(value) });
+  }
+
+  function selectContractFile(file: File | null) {
+    setContractFile(file);
+    setContractFileError(file ? getContractFileValidationError(file) ?? null : null);
+  }
+
   return (
     <div className="space-y-6">
       <section className="space-y-3">
@@ -652,8 +787,17 @@ function PropertyForm({
             <Input value={draft.tenantContact} onChange={(event) => onChange({ ...draft, tenantContact: event.target.value })} placeholder="Telefone, e-mail ou WhatsApp" />
           </Label>
           <Label>
-            Vencimento mensal
-            <Input type="date" value={draft.paymentDueDate} onChange={(event) => onChange({ ...draft, paymentDueDate: event.target.value })} />
+            Dia do vencimento mensal
+            <Input
+              inputMode="numeric"
+              min="1"
+              max="31"
+              type="number"
+              value={paymentDueDay}
+              onChange={(event) => updateMonthlyDueDay(event.target.value)}
+              placeholder="Ex.: 10"
+            />
+            <span className="text-xs font-normal text-slate-500">Use só o dia do mês; o contrato define o período.</span>
           </Label>
           <Label>
             Aluguel
@@ -673,29 +817,71 @@ function PropertyForm({
       <section className="space-y-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-4">
         <div>
           <p className="text-sm font-semibold text-white">Base contratual</p>
-          <p className="text-xs text-slate-500">Ainda sem upload de contrato; primeiro vamos registrar os dados que geram alertas.</p>
+          <p className="text-xs text-slate-500">Registre as datas principais, a regra de reajuste e deixe o anexo como opcional para adicionar depois.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
             Início do contrato
-            <Input type="date" value={draft.contractStartDate} onChange={(event) => onChange({ ...draft, contractStartDate: event.target.value })} />
+            <Input className={dateInputClassName} type="date" value={draft.contractStartDate} onChange={(event) => onChange({ ...draft, contractStartDate: event.target.value })} />
           </Label>
           <Label>
             Vencimento do contrato
-            <Input type="date" value={draft.contractEndDate} onChange={(event) => onChange({ ...draft, contractEndDate: event.target.value })} />
+            <Input className={dateInputClassName} type="date" value={draft.contractEndDate} onChange={(event) => onChange({ ...draft, contractEndDate: event.target.value })} />
           </Label>
+          <Label className="md:col-span-2">
+            Regra da data base do reajuste
+            <select
+              className={selectClassName}
+              value={adjustmentRule}
+              onChange={(event) =>
+                updateAdjustmentRule(
+                  event.target.value as "none" | "contract-start-year" | "contract-end" | "custom-period" | "custom-date",
+                )
+              }
+            >
+              <option value="none">Sem cláusula de reajuste</option>
+              <option value="contract-start-year" disabled={!draft.contractStartDate}>1 ano do início do contrato</option>
+              <option value="contract-end" disabled={!draft.contractEndDate}>Ao fim do contrato</option>
+              <option value="custom-period" disabled={!draft.contractStartDate}>Período personalizado após o início</option>
+              <option value="custom-date">Data personalizada</option>
+            </select>
+          </Label>
+          {adjustmentRule === "custom-period" ? (
+            <Label>
+              Período personalizado
+              <Input
+                inputMode="numeric"
+                min="1"
+                type="number"
+                value={customAdjustmentMonths}
+                onChange={(event) => updateCustomAdjustmentMonths(event.target.value)}
+                placeholder="Ex.: 18"
+              />
+              <span className="text-xs font-normal text-slate-500">Quantidade de meses após o início do contrato.</span>
+            </Label>
+          ) : null}
           <Label>
             Data base do reajuste
-            <Input type="date" value={draft.rentAdjustmentBaseDate} disabled={!draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, rentAdjustmentBaseDate: event.target.value })} />
+            <Input
+              className={dateInputClassName}
+              type="date"
+              value={draft.rentAdjustmentBaseDate}
+              disabled={!adjustmentEnabled || adjustmentRule !== "custom-date"}
+              onChange={(event) => onChange({ ...draft, hasAnnualAdjustment: true, rentAdjustmentBaseDate: event.target.value })}
+            />
+            {adjustmentRule !== "custom-date" && adjustmentEnabled ? (
+              <span className="text-xs font-normal text-slate-500">Calculada pela regra escolhida.</span>
+            ) : null}
           </Label>
-          <Label>
+          <Label className="md:col-span-2">
             Índice/cláusula
-            <Input value={draft.rentAdjustmentIndex} disabled={!draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, rentAdjustmentIndex: event.target.value })} placeholder="Ex.: IPCA, IGP-M" />
+            <Input
+              value={draft.rentAdjustmentIndex}
+              disabled={!adjustmentEnabled}
+              onChange={(event) => onChange({ ...draft, hasAnnualAdjustment: true, rentAdjustmentIndex: event.target.value })}
+              placeholder="Ex.: IPCA, IGP-M ou regra escrita no contrato"
+            />
           </Label>
-          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300 md:col-span-2">
-            <input type="checkbox" checked={draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, hasAnnualAdjustment: event.target.checked })} className="size-4 accent-emerald-300" />
-            Contrato tem cláusula anual de reajuste
-          </label>
           <label className="flex flex-col gap-2 text-sm font-medium text-slate-300 md:col-span-2 xl:col-span-4">
             Observações contratuais
             <textarea
@@ -705,6 +891,57 @@ function PropertyForm({
               className="min-h-24 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-emerald-300/60"
             />
           </label>
+          <div
+            className={`rounded-2xl border border-dashed p-4 text-sm text-slate-400 transition md:col-span-2 xl:col-span-4 ${
+              isDraggingContract ? "border-emerald-300/70 bg-emerald-300/[0.08]" : "border-white/15 bg-slate-950/60 hover:border-emerald-300/40"
+            }`}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsDraggingContract(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDraggingContract(true);
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault();
+              setIsDraggingContract(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setIsDraggingContract(false);
+              selectContractFile(event.dataTransfer.files?.[0] ?? null);
+            }}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold text-slate-200">Anexo do contrato opcional</p>
+                <p className="mt-1 leading-6">
+                  Arraste um PDF/DOCX para esta área ou use o botão. Se selecionado, o contrato será enviado junto ao imóvel.
+                </p>
+                {contractFile ? <p className="mt-2 text-cyan-100">Selecionado: {contractFile.name}</p> : null}
+                {contractFileError ? <p className="mt-2 text-red-200">{contractFileError}</p> : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={isSaving}>
+                  Anexar arquivo
+                </Button>
+                {contractFile ? (
+                  <Button type="button" variant="secondary" onClick={() => selectContractFile(null)} disabled={isSaving}>
+                    Remover
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={`${CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES.join(",")},.pdf,.docx`}
+              className="sr-only"
+              disabled={isSaving}
+              onChange={(event) => selectContractFile(event.target.files?.[0] ?? null)}
+            />
+          </div>
         </div>
       </section>
 
@@ -712,7 +949,7 @@ function PropertyForm({
       {formMessage ? <p className="text-sm text-emerald-200">{formMessage}</p> : null}
 
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => onSave(draft)} disabled={isSaving}>{isSaving ? "Salvando..." : saveLabel}</Button>
+        <Button onClick={() => onSave(draft, contractFile)} disabled={isSaving || Boolean(contractFileError)}>{isSaving ? "Salvando..." : saveLabel}</Button>
         <Button variant="secondary" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
       </div>
     </div>

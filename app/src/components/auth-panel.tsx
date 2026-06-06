@@ -12,11 +12,10 @@ import { Label } from "@/components/ui/label";
 import {
   type AuthMode,
   getAuthModeCopy,
-  getSignupSuccessMessage,
   validateAuthForm,
   validateSignupForm,
 } from "@/lib/auth-form";
-import { DASHBOARD_HOME, PASSWORD_RECOVERY_PATH } from "@/lib/session-routes";
+import { DASHBOARD_HOME, PASSWORD_RECOVERY_PATH, SIGNUP_CONFIRMATION_PATH } from "@/lib/session-routes";
 import { hasSupabaseConfig, supabase } from "@/lib/supabase";
 
 type AuthStatus = "idle" | "submitting";
@@ -75,10 +74,11 @@ export function AuthPanel({ mode }: AuthPanelProps) {
 
       await supabase.auth.signOut();
       setFullName("");
+      setEmail("");
       setEmailConfirmation("");
       setPassword("");
       setPasswordConfirmation("");
-      setMessage(getSignupSuccessMessage());
+      router.replace(`${SIGNUP_CONFIRMATION_PATH}?email=${encodeURIComponent(validated.data.email)}`);
       return;
     }
 
