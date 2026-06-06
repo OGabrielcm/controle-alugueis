@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
-import { DASHBOARD_HOME, PASSWORD_RECOVERY_PATH, isAuthRoute, isOperationalRoute } from "./session-routes";
+import { DASHBOARD_HOME, PASSWORD_RECOVERY_PATH, SIGNUP_CONFIRMATION_PATH, isAuthRoute, isOperationalRoute } from "./session-routes";
 
 describe("session route boundaries", () => {
   it("usa /dashboard como tela operacional principal", () => {
@@ -13,6 +13,8 @@ describe("session route boundaries", () => {
     assert.equal(PASSWORD_RECOVERY_PATH, "/recuperar-senha");
     assert.equal(isAuthRoute("/recuperar-senha"), true);
     assert.equal(isAuthRoute("/redefinir-senha"), true);
+    assert.equal(SIGNUP_CONFIRMATION_PATH, "/cadastro/confirmar-email");
+    assert.equal(isAuthRoute("/cadastro/confirmar-email"), true);
   });
 
   it("não trata a raiz como rota operacional para evitar dashboard direto", () => {

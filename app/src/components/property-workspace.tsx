@@ -13,7 +13,6 @@ import {
   type PropertyRecord,
   filterProperties,
   formatCurrency,
-  formatDate,
   getFilterOptions,
   getPriorityGroups,
   getPropertyAlerts,
@@ -22,6 +21,7 @@ import {
   summarizePortfolio,
 } from "@/lib/rentals";
 import { type ContractAgenda, buildContractAgenda, getTodayDateString } from "@/lib/contract-agenda";
+import { buildMonthlyDueDate, formatMonthlyDueDay, getMonthlyDueDay } from "@/lib/monthly-due-date";
 import {
   type PropertyDraft,
   draftFromProperty,
@@ -64,8 +64,17 @@ function loadLocalProperties(fallback: PropertyRecord[]) {
 }
 
 export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady }: PropertyWorkspaceProps) {
-  const [managedProperties, setManagedProperties] = useState<PropertyRecord[]>(() => properties);
-  const [currentDataSource, setCurrentDataSource] = useState<PropertyDataSource>(() => dataSource);
+  const [managedProperties, setManagedProperties] = useState<PropertyRecord[]>(() => (supabaseReady ? [] : properties));
+  const [currentDataSource, setCurrentDataSource] = useState<PropertyDataSource>(() =>
+    supabaseReady
+      ? {
+          label: "Carregando sessão",
+          referenceMonth: "Aguardando autenticação",
+          status: "supabase",
+          note: "Validando sessão antes de mostrar imóveis para evitar piscar dados demo/mockados.",
+        }
+      : dataSource,
+  );
   const [activeFilter, setActiveFilter] = useState<PortfolioFilter>("all");
   const [editingDraft, setEditingDraft] = useState<PropertyDraft | null>(null);
   const [newDraft, setNewDraft] = useState<PropertyDraft>(emptyPropertyDraft);
@@ -95,7 +104,13 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
 
           if (error) {
             setFormError(`Não consegui carregar seus imóveis privados (${error.message}).`);
-            setManagedProperties(loadLocalProperties(properties));
+            setManagedProperties([]);
+            setCurrentDataSource({
+              label: "Supabase: erro ao carregar imóveis privados",
+              referenceMonth: "Dados privados autenticados",
+              status: "fallback",
+              note: "Não mostrei dados demo/mockados para uma sessão autenticada com erro de leitura.",
+            });
           } else {
             setManagedProperties(((data ?? []) as unknown as SupabasePropertyRow[]).map(mapSupabaseRow));
             setCurrentDataSource({
@@ -113,6 +128,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       }
 
       setManagedProperties(loadLocalProperties(properties));
+      setCurrentDataSource(dataSource);
       setHydrated(true);
     }
 
@@ -121,7 +137,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
     return () => {
       mounted = false;
     };
-  }, [properties]);
+  }, [dataSource, properties]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -571,7 +587,7 @@ function PropertyList({
                     </td>
                     <td className="px-4 py-4 text-slate-300">{property.tenantName ?? "Não informado"}</td>
                     <td className="px-4 py-4 text-slate-300">
-                      <div>{formatDate(property.paymentDueDate)}</div>
+                      <div>{formatMonthlyDueDay(property.paymentDueDate)}</div>
                       <div className="text-xs text-slate-500">{property.isRentPaid ? "Pago" : "Pendente"}</div>
                     </td>
                     <td className="px-4 py-4 text-slate-100">{formatCurrency(property.rentAmount)}</td>
@@ -614,6 +630,28 @@ function PropertyForm({
   onSave: (draft: PropertyDraft) => void;
   saveLabel: string;
 }) {
+  const paymentDueDay = getMonthlyDueDay(draft.paymentDueDate);
+  const dateInputClassName = "text-slate-100 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:bg-emerald-300 [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-100";
+  const selectClassName = "min-h-10 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-300/40 focus:ring-2 focus:ring-emerald-300/20";
+
+  function updateMonthlyDueDay(value: string) {
+    onChange({ ...draft, paymentDueDate: buildMonthlyDueDate(value, draft.contractStartDate) });
+  }
+
+  function updateAdjustmentBaseDate(option: "contract-start-year" | "contract-end" | "custom") {
+    if (option === "contract-start-year") {
+      if (!draft.contractStartDate) return;
+      const start = new Date(`${draft.contractStartDate}T00:00:00`);
+      start.setFullYear(start.getFullYear() + 1);
+      onChange({ ...draft, rentAdjustmentBaseDate: start.toISOString().slice(0, 10) });
+      return;
+    }
+
+    if (option === "contract-end") {
+      onChange({ ...draft, rentAdjustmentBaseDate: draft.contractEndDate });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="space-y-3">
@@ -652,8 +690,17 @@ function PropertyForm({
             <Input value={draft.tenantContact} onChange={(event) => onChange({ ...draft, tenantContact: event.target.value })} placeholder="Telefone, e-mail ou WhatsApp" />
           </Label>
           <Label>
-            Vencimento mensal
-            <Input type="date" value={draft.paymentDueDate} onChange={(event) => onChange({ ...draft, paymentDueDate: event.target.value })} />
+            Dia do vencimento mensal
+            <Input
+              inputMode="numeric"
+              min="1"
+              max="31"
+              type="number"
+              value={paymentDueDay}
+              onChange={(event) => updateMonthlyDueDay(event.target.value)}
+              placeholder="Ex.: 10"
+            />
+            <span className="text-xs font-normal text-slate-500">Use só o dia do mês; o contrato define o período.</span>
           </Label>
           <Label>
             Aluguel
@@ -673,29 +720,54 @@ function PropertyForm({
       <section className="space-y-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-4">
         <div>
           <p className="text-sm font-semibold text-white">Base contratual</p>
-          <p className="text-xs text-slate-500">Ainda sem upload de contrato; primeiro vamos registrar os dados que geram alertas.</p>
+          <p className="text-xs text-slate-500">Registre as datas principais, a regra de reajuste e deixe o anexo como opcional para adicionar depois.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
             Início do contrato
-            <Input type="date" value={draft.contractStartDate} onChange={(event) => onChange({ ...draft, contractStartDate: event.target.value })} />
+            <Input className={dateInputClassName} type="date" value={draft.contractStartDate} onChange={(event) => onChange({ ...draft, contractStartDate: event.target.value })} />
           </Label>
           <Label>
             Vencimento do contrato
-            <Input type="date" value={draft.contractEndDate} onChange={(event) => onChange({ ...draft, contractEndDate: event.target.value })} />
+            <Input className={dateInputClassName} type="date" value={draft.contractEndDate} onChange={(event) => onChange({ ...draft, contractEndDate: event.target.value })} />
+          </Label>
+          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300 md:col-span-2">
+            <input
+              type="checkbox"
+              checked={draft.hasAnnualAdjustment}
+              onChange={(event) =>
+                onChange({
+                  ...draft,
+                  hasAnnualAdjustment: event.target.checked,
+                  rentAdjustmentBaseDate: event.target.checked ? draft.rentAdjustmentBaseDate : "",
+                  rentAdjustmentIndex: event.target.checked ? draft.rentAdjustmentIndex : "",
+                })
+              }
+              className="size-4 accent-emerald-300"
+            />
+            Contrato tem cláusula anual de reajuste
+          </label>
+          <Label>
+            Regra da data base
+            <select
+              className={selectClassName}
+              disabled={!draft.hasAnnualAdjustment}
+              defaultValue="custom"
+              onChange={(event) => updateAdjustmentBaseDate(event.target.value as "contract-start-year" | "contract-end" | "custom")}
+            >
+              <option value="custom">Personalizada</option>
+              <option value="contract-start-year" disabled={!draft.contractStartDate}>1 ano do início do contrato</option>
+              <option value="contract-end" disabled={!draft.contractEndDate}>Ao fim do contrato</option>
+            </select>
           </Label>
           <Label>
             Data base do reajuste
-            <Input type="date" value={draft.rentAdjustmentBaseDate} disabled={!draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, rentAdjustmentBaseDate: event.target.value })} />
+            <Input className={dateInputClassName} type="date" value={draft.rentAdjustmentBaseDate} disabled={!draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, rentAdjustmentBaseDate: event.target.value })} />
           </Label>
-          <Label>
+          <Label className="md:col-span-2">
             Índice/cláusula
-            <Input value={draft.rentAdjustmentIndex} disabled={!draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, rentAdjustmentIndex: event.target.value })} placeholder="Ex.: IPCA, IGP-M" />
+            <Input value={draft.rentAdjustmentIndex} disabled={!draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, rentAdjustmentIndex: event.target.value })} placeholder="Ex.: IPCA, IGP-M ou regra escrita no contrato" />
           </Label>
-          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300 md:col-span-2">
-            <input type="checkbox" checked={draft.hasAnnualAdjustment} onChange={(event) => onChange({ ...draft, hasAnnualAdjustment: event.target.checked })} className="size-4 accent-emerald-300" />
-            Contrato tem cláusula anual de reajuste
-          </label>
           <label className="flex flex-col gap-2 text-sm font-medium text-slate-300 md:col-span-2 xl:col-span-4">
             Observações contratuais
             <textarea
@@ -705,6 +777,12 @@ function PropertyForm({
               className="min-h-24 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-emerald-300/60"
             />
           </label>
+          <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/60 p-4 text-sm text-slate-400 md:col-span-2 xl:col-span-4">
+            <p className="font-semibold text-slate-200">Anexo do contrato opcional</p>
+            <p className="mt-1 leading-6">
+              Você pode criar o imóvel agora sem contrato anexado. O upload ficará disponível no detalhe do imóvel para adicionar o PDF/DOCX depois.
+            </p>
+          </div>
         </div>
       </section>
 
