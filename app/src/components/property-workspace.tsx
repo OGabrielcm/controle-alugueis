@@ -220,7 +220,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           const uploadResult = await uploadContractAttachment({ file: contractFile, propertyId: saved.id, supabaseClient: supabase });
           const { data: updatedData, error: updateError } = await supabase
             .from("properties")
-            .update({ contract_url: uploadResult.publicUrl })
+            .update({ contract_url: uploadResult.path })
             .eq("id", saved.id)
             .select(propertyColumns)
             .single();

@@ -21,8 +21,48 @@ export type BuildContractStoragePathInput = {
 
 export type ContractUploadResult = {
   path: string;
-  publicUrl: string;
 };
+
+const PUBLIC_STORAGE_MARKER = `/storage/v1/object/public/${CONTRACT_ATTACHMENTS_BUCKET}/`;
+
+export function normalizeContractStoragePath(value?: string | null) {
+  if (!value) return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const markerIndex = trimmed.indexOf(PUBLIC_STORAGE_MARKER);
+  if (markerIndex >= 0) {
+    return decodeURIComponent(trimmed.slice(markerIndex + PUBLIC_STORAGE_MARKER.length));
+  }
+
+  return trimmed.replace(/^\/+/, "");
+}
+
+export async function createContractSignedUrl({
+  path,
+  supabaseClient,
+  expiresInSeconds = 5 * 60,
+}: {
+  path: string;
+  supabaseClient: SupabaseClient;
+  expiresInSeconds?: number;
+}) {
+  const normalizedPath = normalizeContractStoragePath(path);
+  if (!normalizedPath) {
+    throw new Error("Contrato sem caminho de arquivo válido.");
+  }
+
+  const { data, error } = await supabaseClient.storage
+    .from(CONTRACT_ATTACHMENTS_BUCKET)
+    .createSignedUrl(normalizedPath, expiresInSeconds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data.signedUrl;
+}
 
 function slugify(value: string) {
   return value
@@ -94,10 +134,7 @@ export async function uploadContractAttachment({
     throw new Error(error.message);
   }
 
-  const { data } = supabaseClient.storage.from(CONTRACT_ATTACHMENTS_BUCKET).getPublicUrl(path);
-
   return {
     path,
-    publicUrl: data.publicUrl,
   };
 }
