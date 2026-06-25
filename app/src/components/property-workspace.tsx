@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ import {
   propertyFromDraft,
 } from "@/lib/property-draft";
 import { buildPropertyMutationPayload } from "@/lib/property-persistence";
+import { shouldRedirectAfterPropertySave } from "@/lib/property-save-flow";
 import { mapSupabaseRow, propertyColumns, type PropertyDataSource, type SupabasePropertyRow } from "@/lib/property-repository";
 import { supabase } from "@/lib/supabase";
 
@@ -69,6 +71,7 @@ function loadLocalProperties(fallback: PropertyRecord[]) {
 }
 
 export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady }: PropertyWorkspaceProps) {
+  const router = useRouter();
   const [managedProperties, setManagedProperties] = useState<PropertyRecord[]>(() => (supabaseReady ? [] : properties));
   const [currentDataSource, setCurrentDataSource] = useState<PropertyDataSource>(() =>
     supabaseReady
@@ -267,6 +270,9 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
             ? "Imóvel salvo no Supabase com seu usuário como dono."
             : "Edição salva no Supabase.",
       );
+      if (shouldRedirectAfterPropertySave(mode, { savedToSupabase: true })) {
+        router.push("/imoveis");
+      }
       return;
     }
 

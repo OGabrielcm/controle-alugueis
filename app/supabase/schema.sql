@@ -86,4 +86,4 @@ using (owner_id = (select auth.uid()));
 
 -- MVP privado: anon lê apenas seeds/demo desatualizados marcados com source_is_outdated.
 -- Escritas reais ficam restritas a usuários autenticados donos do imóvel via owner_id = auth.uid().
--- Antes de conectar formulários reais, a UI ainda precisa exigir login e preencher owner_id no insert.
+-- A UI deve exigir login nas rotas operacionais e preencher owner_id no insert autenticado.
