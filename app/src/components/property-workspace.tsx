@@ -449,6 +449,33 @@ function Overview({
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card className="border-emerald-300/20 bg-emerald-300/[0.05]">
+          <CardHeader>
+            <CardTitle>Próximas ações</CardTitle>
+            <CardDescription>Atalhos para operar a carteira sem cair em uma página única confusa.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-3">
+            <ActionStep
+              title="1. Ver imóveis"
+              description="Abra a carteira para conferir pagamento, status e contrato de cada unidade."
+              href="/imoveis"
+              cta="Abrir lista"
+            />
+            <ActionStep
+              title="2. Cadastrar novo"
+              description="Use o fluxo separado quando entrar um imóvel da família ou faltar uma unidade."
+              href="/imoveis/novo"
+              cta="Novo imóvel"
+            />
+            <ActionStep
+              title="3. Revisar alertas"
+              description="Priorize pendências, contratos incompletos e imóveis sem banco informado."
+              href="/imoveis"
+              cta="Ver pendências"
+            />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Prioridades do mês</CardTitle>
@@ -465,6 +492,16 @@ function Overview({
         <ContractAgendaCard agenda={contractAgenda} />
       </section>
     </>
+  );
+}
+
+function ActionStep({ title, description, href, cta }: { title: string; description: string; href: string; cta: string }) {
+  return (
+    <Link href={href} className="rounded-2xl bg-slate-950/70 p-4 ring-1 ring-white/10 transition hover:bg-slate-950 hover:ring-emerald-300/30">
+      <p className="text-sm font-semibold text-white">{title}</p>
+      <p className="mt-2 min-h-12 text-sm leading-6 text-slate-400">{description}</p>
+      <span className="mt-4 inline-flex text-sm font-semibold text-emerald-200">{cta}</span>
+    </Link>
   );
 }
 
@@ -573,12 +610,16 @@ function PropertyList({
   onFilterChange: (filter: PortfolioFilter) => void;
   onSave: (draft: PropertyDraft, contractFile?: File | null) => void;
 }) {
+  const hasProperties = filteredProperties.length > 0;
+
   return (
     <Card>
       <CardHeader className="gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <CardTitle>Carteira de imóveis</CardTitle>
-          <CardDescription>Filtros e edição ficam aqui; a home agora só resume o que importa.</CardDescription>
+          <CardDescription>
+            {filteredProperties.length} imóvel(is) neste filtro. No celular, cada imóvel vira um cartão com ações claras.
+          </CardDescription>
         </div>
         <ButtonLink href="/imoveis/novo">Novo imóvel</ButtonLink>
       </CardHeader>
@@ -615,7 +656,27 @@ function PropertyList({
           ))}
         </div>
 
-        <div className="overflow-x-auto">
+        {!hasProperties ? (
+          <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/60 p-6 text-sm text-slate-300">
+            <p className="font-semibold text-white">Nenhum imóvel neste filtro</p>
+            <p className="mt-2 text-slate-400">Troque o filtro ou cadastre um novo imóvel para começar a carteira privada.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button type="button" variant="secondary" onClick={() => onFilterChange("all")}>Ver todos</Button>
+              <ButtonLink href="/imoveis/novo">Novo imóvel</ButtonLink>
+            </div>
+          </div>
+        ) : null}
+
+        {hasProperties ? (
+          <div className="grid gap-3 lg:hidden">
+            {filteredProperties.map((property) => (
+              <PropertyMobileCard key={property.id} property={property} onEdit={onEdit} />
+            ))}
+          </div>
+        ) : null}
+
+        {hasProperties ? (
+        <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[1180px] border-separate border-spacing-y-2 text-left text-sm">
             <thead className="text-slate-400">
               <tr>
@@ -665,8 +726,57 @@ function PropertyList({
             </tbody>
           </table>
         </div>
+        ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function PropertyMobileCard({ property, onEdit }: { property: PropertyRecord; onEdit: (property: PropertyRecord) => void }) {
+  const status = primaryPropertyStatus(property);
+  const alerts = getPropertyAlerts(property).slice(0, 2);
+
+  return (
+    <div className="rounded-2xl bg-slate-900/80 p-4 ring-1 ring-white/10">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Link href={`/imoveis/${encodeURIComponent(property.id)}`} className="text-base font-semibold text-white hover:text-emerald-300">
+            {property.buildingName}
+          </Link>
+          <p className="mt-1 text-sm text-slate-500">{property.tenantName || "Sem inquilino informado"}</p>
+        </div>
+        <Badge variant={badgeVariantByStatus[status]}>{status}</Badge>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <CompactInfo label="Aluguel" value={formatCurrency(property.rentAmount)} />
+        <CompactInfo label="Pagamento" value={property.isRentPaid ? "Pago" : "Pendente"} />
+        <CompactInfo label="Vencimento" value={formatMonthlyDueDay(property.paymentDueDate)} />
+        <CompactInfo label="Banco" value={property.receivingBank || "—"} />
+      </div>
+
+      {alerts.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-1">
+          {alerts.map((alert) => (
+            <Badge key={alert.label} variant={alert.severity}>{alert.label}</Badge>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <ButtonLink href={`/imoveis/${encodeURIComponent(property.id)}`} variant="secondary">Detalhes</ButtonLink>
+        <Button type="button" variant="secondary" onClick={() => onEdit(property)}>Editar</Button>
+      </div>
+    </div>
+  );
+}
+
+function CompactInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-slate-950/60 p-3 ring-1 ring-white/10">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 font-medium text-slate-100">{value}</p>
+    </div>
   );
 }
 
@@ -757,6 +867,13 @@ function PropertyForm({
 
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-sm text-cyan-50">
+        <p className="font-semibold">Preencha primeiro o essencial</p>
+        <p className="mt-1 leading-6 text-cyan-100/75">
+          Para uso familiar, comece com imóvel, aluguel, vencimento e banco. Contrato, reajuste e anexo podem ser completados depois.
+        </p>
+      </div>
+
       <section className="space-y-3">
         <div>
           <p className="text-sm font-semibold text-white">Dados do imóvel</p>
