@@ -5,7 +5,7 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values (
   'property-contracts',
   'property-contracts',
-  true,
+  false,
   10485760,
   array[
     'application/pdf',

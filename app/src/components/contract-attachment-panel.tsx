@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES,
   CONTRACT_ATTACHMENTS_BUCKET,
+  createContractSignedUrl,
   getContractFileValidationError,
+  normalizeContractStoragePath,
   uploadContractAttachment,
 } from "@/lib/contract-attachment";
 import { supabase } from "@/lib/supabase";
@@ -33,18 +35,19 @@ function readLocalAttachment(propertyId: string) {
   }
 }
 
-function saveLocalAttachment(propertyId: string, publicUrl: string) {
+function saveLocalAttachment(propertyId: string, storagePath: string) {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   const parsed = stored ? (JSON.parse(stored) as Record<string, string>) : {};
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...parsed, [propertyId]: publicUrl }));
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...parsed, [propertyId]: storagePath }));
 }
 
 export function ContractAttachmentPanel({ propertyId, initialContractUrl, supabaseReady }: ContractAttachmentPanelProps) {
-  const [contractUrl, setContractUrl] = useState(() => initialContractUrl ?? readLocalAttachment(propertyId));
+  const [contractPath, setContractPath] = useState(() => normalizeContractStoragePath(initialContractUrl ?? readLocalAttachment(propertyId)));
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   function selectFile(file: File | null) {
@@ -80,21 +83,45 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         propertyId,
         supabaseClient: supabase,
       });
-      const { error: updateError } = await supabase.from("properties").update({ contract_url: result.publicUrl }).eq("id", propertyId);
+      const { error: updateError } = await supabase.from("properties").update({ contract_url: result.path }).eq("id", propertyId);
 
       if (updateError) {
         throw new Error(updateError.message);
       }
 
-      saveLocalAttachment(propertyId, result.publicUrl);
-      setContractUrl(result.publicUrl);
+      saveLocalAttachment(propertyId, result.path);
+      setContractPath(result.path);
       setSelectedFile(null);
-      setStatusMessage("Contrato enviado e registrado no imóvel.");
+      setStatusMessage("Contrato enviado e registrado no imóvel. O acesso será feito por link temporário.");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Não foi possível enviar o contrato.");
       setStatusMessage(null);
     } finally {
       setIsUploading(false);
+    }
+  }
+
+  async function handleOpenContract() {
+    if (!contractPath) return;
+
+    if (!supabaseReady || !supabase) {
+      setErrorMessage("Entre com o usuário correto para gerar um link temporário do contrato.");
+      return;
+    }
+
+    setIsOpening(true);
+    setErrorMessage(null);
+    setStatusMessage("Gerando link temporário do contrato...");
+
+    try {
+      const signedUrl = await createContractSignedUrl({ path: contractPath, supabaseClient: supabase });
+      window.open(signedUrl, "_blank", "noopener,noreferrer");
+      setStatusMessage("Link temporário gerado. Se não abriu, confira o bloqueador de pop-up do navegador.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível abrir o contrato.");
+      setStatusMessage(null);
+    } finally {
+      setIsOpening(false);
     }
   }
 
@@ -106,7 +133,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
             <CardTitle>Anexo do contrato</CardTitle>
             <CardDescription>Upload de PDF ou DOCX por imóvel usando Supabase Storage.</CardDescription>
           </div>
-          <Badge variant={contractUrl ? "success" : "warning"}>{contractUrl ? "com anexo" : "sem anexo"}</Badge>
+          <Badge variant={contractPath ? "success" : "warning"}>{contractPath ? "com anexo" : "sem anexo"}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -114,18 +141,15 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
           <p>
             Bucket esperado: <span className="font-mono text-slate-200">{CONTRACT_ATTACHMENTS_BUCKET}</span>
           </p>
-          <p className="mt-2">Limite atual: PDF ou DOCX de até 10MB. O envio registra o link no imóvel salvo no Supabase.</p>
+          <p className="mt-2">
+            Limite atual: PDF ou DOCX de até 10MB. O envio registra o caminho privado no imóvel e gera link temporário só na abertura.
+          </p>
         </div>
 
-        {contractUrl ? (
-          <a
-            href={contractUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="block rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-4 text-sm font-medium text-emerald-100 transition hover:bg-emerald-300/[0.1]"
-          >
-            Abrir contrato anexado
-          </a>
+        {contractPath ? (
+          <Button type="button" variant="secondary" onClick={handleOpenContract} disabled={isOpening}>
+            {isOpening ? "Gerando link..." : "Abrir contrato anexado"}
+          </Button>
         ) : null}
 
         <label

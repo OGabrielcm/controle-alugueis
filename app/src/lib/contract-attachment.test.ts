@@ -5,6 +5,7 @@ import {
   buildContractStoragePath,
   getContractFileValidationError,
   normalizeContractFileName,
+  normalizeContractStoragePath,
 } from "./contract-attachment";
 
 describe("normalizeContractFileName", () => {
@@ -18,6 +19,24 @@ describe("normalizeContractFileName", () => {
 
   it("aplica nome padrão quando o arquivo não tem nome útil", () => {
     assert.equal(normalizeContractFileName("???.pdf"), "contrato.pdf");
+  });
+});
+
+describe("normalizeContractStoragePath", () => {
+  it("mantém path privado já normalizado", () => {
+    assert.equal(
+      normalizeContractStoragePath("1eab06ca-f0d6-42e6-ae6b-4c5db07673d1/1782221544157-contrato.pdf"),
+      "1eab06ca-f0d6-42e6-ae6b-4c5db07673d1/1782221544157-contrato.pdf",
+    );
+  });
+
+  it("converte URL pública antiga para path interno", () => {
+    assert.equal(
+      normalizeContractStoragePath(
+        "https://wmdsbwpqqpkmsowqpssj.supabase.co/storage/v1/object/public/property-contracts/48b73660-0682-4e5d-8d05-edcdba7e9c2c/1782220139735-lista-unidade-i.pdf",
+      ),
+      "48b73660-0682-4e5d-8d05-edcdba7e9c2c/1782220139735-lista-unidade-i.pdf",
+    );
   });
 });
 

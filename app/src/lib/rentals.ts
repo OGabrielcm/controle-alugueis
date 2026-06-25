@@ -36,7 +36,7 @@ export const propertySchema = z.object({
   iptuPaidByTenant: z.boolean(),
   garbageFeeAmount: z.number().min(0).optional(),
   laudemioAmount: z.number().min(0).optional(),
-  contractUrl: z.string().url().optional(),
+  contractUrl: z.string().min(1).optional(),
   receivingBank: z.string().optional(),
   hasRentDeposit: z.boolean(),
 });
