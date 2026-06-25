@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test src/**/*.test.ts",
-    "smoke:supabase": "node scripts/smoke-supabase.mjs"
+    "smoke:supabase": "node scripts/smoke-supabase.mjs",
+    "audit:multiconta": "node scripts/audit-multiconta-security.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
