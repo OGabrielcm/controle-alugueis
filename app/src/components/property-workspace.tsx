@@ -421,17 +421,17 @@ function PageHeader({
     overview: {
       eyebrow: "Resumo operacional",
       title: "Visão geral da carteira",
-      description: "Indicadores, prioridades e próximos pontos de atenção sem misturar cadastro e tabela na mesma tela.",
+      description: "Comece pelo resumo do mês e siga pelos atalhos. A ideia é qualquer pessoa da família entender o próximo passo sem explicação técnica.",
     },
     list: {
       eyebrow: "Carteira",
       title: "Imóveis e pagamentos",
-      description: "Lista completa com filtros, status e edição em rascunho local.",
+      description: "Consulte, edite, abra detalhes ou exclua imóveis da sua conta privada.",
     },
     new: {
       eyebrow: "Cadastro",
       title: "Adicionar imóvel",
-      description: "Fluxo separado para cadastro manual, evitando a sensação de tudo em uma página só.",
+      description: "Cadastre primeiro o essencial; contrato, reajuste e observações podem ser completados depois.",
     },
   }[mode];
 
@@ -483,33 +483,6 @@ function Overview({
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card className="border-emerald-300/20 bg-emerald-300/[0.05]">
-          <CardHeader>
-            <CardTitle>Próximas ações</CardTitle>
-            <CardDescription>Atalhos para operar a carteira sem cair em uma página única confusa.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
-            <ActionStep
-              title="1. Ver imóveis"
-              description="Abra a carteira para conferir pagamento, status e contrato de cada unidade."
-              href="/imoveis"
-              cta="Abrir lista"
-            />
-            <ActionStep
-              title="2. Cadastrar novo"
-              description="Use o fluxo separado quando entrar um imóvel da família ou faltar uma unidade."
-              href="/imoveis/novo"
-              cta="Novo imóvel"
-            />
-            <ActionStep
-              title="3. Revisar alertas"
-              description="Priorize pendências, contratos incompletos e imóveis sem banco informado."
-              href="/imoveis"
-              cta="Ver pendências"
-            />
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle>Prioridades do mês</CardTitle>
@@ -526,16 +499,6 @@ function Overview({
         <ContractAgendaCard agenda={contractAgenda} />
       </section>
     </>
-  );
-}
-
-function ActionStep({ title, description, href, cta }: { title: string; description: string; href: string; cta: string }) {
-  return (
-    <Link href={href} className="rounded-2xl bg-slate-950/70 p-4 ring-1 ring-white/10 transition hover:bg-slate-950 hover:ring-emerald-300/30">
-      <p className="text-sm font-semibold text-white">{title}</p>
-      <p className="mt-2 min-h-12 text-sm leading-6 text-slate-400">{description}</p>
-      <span className="mt-4 inline-flex text-sm font-semibold text-emerald-200">{cta}</span>
-    </Link>
   );
 }
 
@@ -662,6 +625,13 @@ function PropertyList({
       <CardContent>
         {editingDraft ? (
           <div className="mb-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-5">
+            <div className="mb-5 flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-emerald-100">Editando imóvel</p>
+                <p className="text-sm text-slate-400">Revise os dados e salve. Para anexos, use Detalhes se preferir uma tela dedicada.</p>
+              </div>
+              <Button type="button" variant="secondary" onClick={onCancel} disabled={isSaving}>Fechar edição</Button>
+            </div>
             <PropertyForm
               key={editingDraft.id ?? "editing-property"}
               draft={editingDraft}
@@ -676,7 +646,6 @@ function PropertyList({
             />
           </div>
         ) : null}
-
         <div className="mb-4 flex flex-wrap gap-2">
           {filterOptions.map((option) => (
             <button
@@ -756,7 +725,7 @@ function PropertyList({
                       <div className="flex flex-wrap gap-2">
                         <ButtonLink href={`/imoveis/${encodeURIComponent(property.id)}`} variant="secondary">Detalhes</ButtonLink>
                         <Button variant="secondary" onClick={() => onEdit(property)} disabled={isSaving}>Editar</Button>
-                        <Button type="button" variant="danger" onClick={() => onDelete(property)} disabled={isSaving}>Excluir</Button>
+                        <Button type="button" variant="danger" onClick={() => onDelete(property)} disabled={isSaving} title="Excluir somente imóveis de teste ou cadastros duplicados">Excluir</Button>
                       </div>
                     </td>
                   </tr>
@@ -805,7 +774,7 @@ function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property
       <div className="mt-4 flex flex-wrap gap-2">
         <ButtonLink href={`/imoveis/${encodeURIComponent(property.id)}`} variant="secondary">Detalhes</ButtonLink>
         <Button type="button" variant="secondary" onClick={() => onEdit(property)} disabled={isSaving}>Editar</Button>
-        <Button type="button" variant="danger" onClick={() => onDelete(property)} disabled={isSaving}>Excluir</Button>
+        <Button type="button" variant="danger" onClick={() => onDelete(property)} disabled={isSaving} title="Excluir somente imóveis de teste ou cadastros duplicados">Excluir</Button>
       </div>
     </div>
   );
@@ -917,7 +886,7 @@ function PropertyForm({
       <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-sm text-cyan-50">
         <p className="font-semibold">Preencha primeiro o essencial</p>
         <p className="mt-1 leading-6 text-cyan-100/75">
-          Para uso familiar, comece com imóvel, aluguel, vencimento e banco. Contrato, reajuste e anexo podem ser completados depois.
+          Campos com * são o mínimo para salvar. Para uso familiar, comece com imóvel e aluguel; vencimento, banco, contrato e reajuste podem ser completados depois.
         </p>
       </div>
 
@@ -928,7 +897,7 @@ function PropertyForm({
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
-            Imóvel
+            <span>Imóvel <span className="text-emerald-300">*</span></span>
             <Input value={draft.buildingName} onChange={(event) => onChange({ ...draft, buildingName: event.target.value })} placeholder="Ex.: Apt. Demo 101" />
           </Label>
           <Label className="xl:col-span-2">
@@ -970,7 +939,7 @@ function PropertyForm({
             <span className="text-xs font-normal text-slate-500">Use só o dia do mês; o contrato define o período.</span>
           </Label>
           <Label>
-            Aluguel
+            <span>Aluguel <span className="text-emerald-300">*</span></span>
             <Input inputMode="decimal" value={draft.rentAmount} onChange={(event) => onChange({ ...draft, rentAmount: event.target.value })} placeholder="0,00" />
           </Label>
           <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
