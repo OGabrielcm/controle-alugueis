@@ -19,6 +19,7 @@ import {
   getPropertyAlerts,
   primaryPropertyStatus,
   propertyExpenseTotal,
+  propertyOccupancyStatus,
   summarizePortfolio,
 } from "@/lib/rentals";
 import { type ContractAgenda, buildContractAgenda, getTodayDateString } from "@/lib/contract-agenda";
@@ -55,6 +56,11 @@ const badgeVariantByStatus = {
   Ok: "success",
   Revisar: "warning",
   Atenção: "danger",
+} as const;
+
+const badgeVariantByOccupancy = {
+  Alugado: "success",
+  Desalugado: "info",
 } as const;
 
 function loadLocalProperties(fallback: PropertyRecord[]) {
@@ -462,10 +468,10 @@ function Overview({
   contractAgenda: ContractAgenda;
 }) {
   const stats = [
-    { label: "Receita prevista", value: formatCurrency(summary.grossRent), hint: `${summary.propertyCount} imóveis mapeados` },
-    { label: "Receita recebida", value: formatCurrency(summary.receivedRent), hint: `${summary.paidRentCount}/${summary.propertyCount} aluguéis pagos` },
+    { label: "Receita contratada", value: formatCurrency(summary.grossRent), hint: `${summary.rentedCount}/${summary.propertyCount} imóveis alugados` },
+    { label: "Receita recebida", value: formatCurrency(summary.receivedRent), hint: `${summary.paidRentCount}/${summary.rentedCount} aluguéis pagos` },
     { label: "Receita pendente", value: formatCurrency(summary.pendingRent), hint: `${summary.pendingRentCount} aluguéis pendentes` },
-    { label: "Saldo estimado", value: formatCurrency(summary.estimatedBalance), hint: "Recebido - despesas do proprietário" },
+    { label: "Desalugados", value: String(summary.propertyCount - summary.rentedCount), hint: "Cadastrados sem contrato vigente" },
   ];
 
   return (
@@ -689,6 +695,7 @@ function PropertyList({
               <tr>
                 <th className="px-4 py-2">Imóvel</th>
                 <th className="px-4 py-2">Inquilino</th>
+                <th className="px-4 py-2">Situação</th>
                 <th className="px-4 py-2">Pagamento</th>
                 <th className="px-4 py-2">Aluguel</th>
                 <th className="px-4 py-2">Despesas dono</th>
@@ -700,6 +707,7 @@ function PropertyList({
             <tbody>
               {filteredProperties.map((property) => {
                 const status = primaryPropertyStatus(property);
+                const occupancy = propertyOccupancyStatus(property);
                 return (
                   <tr key={property.id} className="bg-slate-900/80 shadow-lg shadow-black/10">
                     <td className="rounded-l-2xl px-4 py-4 font-medium text-white">
@@ -713,9 +721,10 @@ function PropertyList({
                       </div>
                     </td>
                     <td className="px-4 py-4 text-slate-300">{property.tenantName ?? "Não informado"}</td>
+                    <td className="px-4 py-4"><Badge variant={badgeVariantByOccupancy[occupancy]}>{occupancy}</Badge></td>
                     <td className="px-4 py-4 text-slate-300">
-                      <div>{formatMonthlyDueDay(property.paymentDueDate)}</div>
-                      <div className="text-xs text-slate-500">{property.isRentPaid ? "Pago" : "Pendente"}</div>
+                      <div>{property.isRented ? formatMonthlyDueDay(property.paymentDueDate) : "Sem cobrança ativa"}</div>
+                      <div className="text-xs text-slate-500">{property.isRented ? (property.isRentPaid ? "Pago" : "Pendente") : "Desalugado"}</div>
                     </td>
                     <td className="px-4 py-4 text-slate-100">{formatCurrency(property.rentAmount)}</td>
                     <td className="px-4 py-4 text-slate-100">{formatCurrency(propertyExpenseTotal(property))}</td>
@@ -742,6 +751,7 @@ function PropertyList({
 
 function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property: PropertyRecord; isSaving: boolean; onDelete: (property: PropertyRecord) => void; onEdit: (property: PropertyRecord) => void }) {
   const status = primaryPropertyStatus(property);
+  const occupancy = propertyOccupancyStatus(property);
   const alerts = getPropertyAlerts(property).slice(0, 2);
 
   return (
@@ -753,13 +763,16 @@ function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property
           </Link>
           <p className="mt-1 text-sm text-slate-500">{property.tenantName || "Sem inquilino informado"}</p>
         </div>
-        <Badge variant={badgeVariantByStatus[status]}>{status}</Badge>
+        <div className="flex flex-col gap-1 text-right">
+          <Badge variant={badgeVariantByOccupancy[occupancy]}>{occupancy}</Badge>
+          <Badge variant={badgeVariantByStatus[status]}>{status}</Badge>
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <CompactInfo label="Aluguel" value={formatCurrency(property.rentAmount)} />
-        <CompactInfo label="Pagamento" value={property.isRentPaid ? "Pago" : "Pendente"} />
-        <CompactInfo label="Vencimento" value={formatMonthlyDueDay(property.paymentDueDate)} />
+        <CompactInfo label="Pagamento" value={property.isRented ? (property.isRentPaid ? "Pago" : "Pendente") : "Sem cobrança"} />
+        <CompactInfo label="Vencimento" value={property.isRented ? formatMonthlyDueDay(property.paymentDueDate) : "—"} />
         <CompactInfo label="Banco" value={property.receivingBank || "—"} />
       </div>
 
@@ -909,12 +922,34 @@ function PropertyForm({
             <Input value={draft.receivingBank} onChange={(event) => onChange({ ...draft, receivingBank: event.target.value })} placeholder="Ex.: Nubank" />
           </Label>
         </div>
+        <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+          <p className="text-sm font-semibold text-white">Situação do imóvel</p>
+          <p className="mt-1 text-xs text-slate-500">Cadastre imóveis alugados ou desalugados. Contrato e cobrança só ficam ativos quando o imóvel está alugado.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => onChange({ ...draft, isRented: true })}
+              className={draft.isRented ? "rounded-xl bg-emerald-300 px-4 py-3 text-left text-sm font-semibold text-slate-950" : "rounded-xl bg-slate-900 px-4 py-3 text-left text-sm font-semibold text-slate-300 ring-1 ring-white/10 transition hover:bg-slate-800"}
+            >
+              Alugado
+              <span className="block text-xs font-normal opacity-75">Tem cobrança ativa, inquilino e contrato vigente ou em revisão.</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange({ ...draft, isRented: false, isRentPaid: false })}
+              className={!draft.isRented ? "rounded-xl bg-cyan-300 px-4 py-3 text-left text-sm font-semibold text-slate-950" : "rounded-xl bg-slate-900 px-4 py-3 text-left text-sm font-semibold text-slate-300 ring-1 ring-white/10 transition hover:bg-slate-800"}
+            >
+              Desalugado
+              <span className="block text-xs font-normal opacity-75">Fica na carteira sem cobrança ativa nem contrato obrigatório.</span>
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-3">
         <div>
           <p className="text-sm font-semibold text-white">Inquilino e aluguel</p>
-          <p className="text-xs text-slate-500">Campos mínimos para acompanhar cobrança e contato.</p>
+          <p className="text-xs text-slate-500">{draft.isRented ? "Campos para acompanhar cobrança e contato." : "Opcional enquanto o imóvel estiver desalugado."}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
@@ -943,20 +978,21 @@ function PropertyForm({
             <Input inputMode="decimal" value={draft.rentAmount} onChange={(event) => onChange({ ...draft, rentAmount: event.target.value })} placeholder="0,00" />
           </Label>
           <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
-            <input type="checkbox" checked={draft.isRented} onChange={(event) => onChange({ ...draft, isRented: event.target.checked })} className="size-4 accent-emerald-300" />
-            Está alugado
-          </label>
-          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
-            <input type="checkbox" checked={draft.isRentPaid} onChange={(event) => onChange({ ...draft, isRentPaid: event.target.checked })} className="size-4 accent-emerald-300" />
+            <input type="checkbox" checked={draft.isRentPaid} disabled={!draft.isRented} onChange={(event) => onChange({ ...draft, isRentPaid: event.target.checked })} className="size-4 accent-emerald-300 disabled:opacity-50" />
             Aluguel pago
           </label>
+          {!draft.isRented ? (
+            <div className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-2 text-sm text-cyan-50">
+              Imóvel desalugado não entra em receita pendente nem exige contrato vigente.
+            </div>
+          ) : null}
         </div>
       </section>
 
       <section className="space-y-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-4">
         <div>
           <p className="text-sm font-semibold text-white">Base contratual</p>
-          <p className="text-xs text-slate-500">Registre as datas principais, a regra de reajuste e deixe o anexo como opcional para adicionar depois.</p>
+          <p className="text-xs text-slate-500">{draft.isRented ? "Registre datas, regra de reajuste e anexo opcional após revisão manual." : "Opcional: use apenas quando existir contrato vigente ou histórico que você queira guardar."}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>

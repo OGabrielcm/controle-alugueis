@@ -1,6 +1,18 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
-import { propertySchema } from "./rentals";
+import {
+  filterProperties,
+  getPropertyAlerts,
+  monthlyRevenue,
+  paidRentCount,
+  pendingRentCount,
+  pendingRevenue,
+  propertyOccupancyStatus,
+  propertySchema,
+  receivedRevenue,
+  summarizePortfolio,
+  type PropertyRecord,
+} from "./rentals";
 
 const baseProperty = {
   id: "apt-101",
@@ -14,6 +26,25 @@ const baseProperty = {
   maintenancePaidByTenant: false,
   iptuPaidByTenant: false,
   hasRentDeposit: false,
+};
+
+const rentedProperty: PropertyRecord = {
+  ...baseProperty,
+  tenantName: "Inquilino teste",
+  contractEndDate: "2026-12-31",
+  receivingBank: "Nubank",
+};
+
+const unrentedProperty: PropertyRecord = {
+  ...baseProperty,
+  id: "apt-102",
+  buildingName: "Apartamento 102",
+  isRented: false,
+  isRentPaid: false,
+  rentAmount: 2200,
+  receivingBank: undefined,
+  tenantName: undefined,
+  contractEndDate: undefined,
 };
 
 describe("propertySchema", () => {
@@ -34,5 +65,45 @@ describe("propertySchema", () => {
     });
 
     assert.ok(parsed.contractUrl?.startsWith("https://"));
+  });
+});
+
+describe("occupancy status", () => {
+  it("separa situação do imóvel entre alugado e desalugado", () => {
+    assert.equal(propertyOccupancyStatus(rentedProperty), "Alugado");
+    assert.equal(propertyOccupancyStatus(unrentedProperty), "Desalugado");
+  });
+
+  it("não considera imóvel desalugado em receita contratada, recebida ou pendente", () => {
+    const paidRentedProperty = { ...rentedProperty, id: "apt-103", isRentPaid: true, rentAmount: 1800 } satisfies PropertyRecord;
+    const portfolio = [paidRentedProperty, unrentedProperty];
+
+    assert.equal(monthlyRevenue(portfolio), 1800);
+    assert.equal(receivedRevenue(portfolio), 1800);
+    assert.equal(pendingRevenue(portfolio), 0);
+    assert.equal(paidRentCount(portfolio), 1);
+    assert.equal(pendingRentCount(portfolio), 0);
+  });
+
+  it("filtra imóveis alugados e desalugados sem depender de contrato vigente", () => {
+    const portfolio = [rentedProperty, unrentedProperty];
+
+    assert.deepEqual(filterProperties(portfolio, "rented").map((item) => item.id), ["apt-101"]);
+    assert.deepEqual(filterProperties(portfolio, "unrented").map((item) => item.id), ["apt-102"]);
+  });
+
+  it("não gera alertas de contrato, inquilino, banco ou aluguel pendente para imóvel desalugado", () => {
+    const alerts = getPropertyAlerts(unrentedProperty);
+
+    assert.deepEqual(alerts, []);
+  });
+
+  it("resume carteira separando alugados de desalugados", () => {
+    const summary = summarizePortfolio([rentedProperty, unrentedProperty]);
+
+    assert.equal(summary.propertyCount, 2);
+    assert.equal(summary.rentedCount, 1);
+    assert.equal(summary.grossRent, rentedProperty.rentAmount);
+    assert.equal(summary.pendingRent, rentedProperty.rentAmount);
   });
 });

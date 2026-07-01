@@ -15,6 +15,7 @@ import {
   getPropertyAlerts,
   primaryPropertyStatus,
   propertyExpenseTotal,
+  propertyOccupancyStatus,
   type PropertyRecord,
 } from "@/lib/rentals";
 import { supabase } from "@/lib/supabase";
@@ -23,6 +24,11 @@ const badgeVariantByStatus = {
   Ok: "success",
   Revisar: "warning",
   Atenção: "danger",
+} as const;
+
+const badgeVariantByOccupancy = {
+  Alugado: "success",
+  Desalugado: "info",
 } as const;
 
 type PropertyDetailClientProps = {
@@ -148,6 +154,7 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
   }
 
   const status = primaryPropertyStatus(property);
+  const occupancy = propertyOccupancyStatus(property);
   const alerts = getPropertyAlerts(property);
   const ownerExpenses = propertyExpenseTotal(property);
 
@@ -163,6 +170,7 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Badge variant={badgeVariantByOccupancy[occupancy]}>{occupancy}</Badge>
             <Badge variant={badgeVariantByStatus[status]}>{status}</Badge>
             <Badge variant={dataSource.status === "supabase" ? "success" : "warning"}>{dataSource.status}</Badge>
           </div>
@@ -180,10 +188,10 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
       {errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">{errorMessage}</p> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Aluguel" value={formatCurrency(property.rentAmount)} hint={property.isRentPaid ? "Pago na base atual" : "Pendente na base atual"} />
+        <MetricCard label="Situação" value={occupancy} hint={property.isRented ? "Cobrança ativa" : "Sem contrato/cobrança ativa"} />
+        <MetricCard label={property.isRented ? "Aluguel" : "Aluguel referência"} value={formatCurrency(property.rentAmount)} hint={property.isRented ? (property.isRentPaid ? "Pago na base atual" : "Pendente na base atual") : "Não entra na receita contratada"} />
         <MetricCard label="Despesas do dono" value={formatCurrency(ownerExpenses)} hint="Condomínio, taxas, manutenção e imprevistos" />
-        <MetricCard label="Saldo estimado" value={formatCurrency((property.isRentPaid ? property.rentAmount : 0) - ownerExpenses)} hint="Recebido menos despesas do proprietário" />
-        <MetricCard label="Vencimento mensal" value={formatMonthlyDueDay(property.paymentDueDate)} hint="Dia do mês registrado para o aluguel" />
+        <MetricCard label="Vencimento mensal" value={property.isRented ? formatMonthlyDueDay(property.paymentDueDate) : "—"} hint={property.isRented ? "Dia do mês registrado para o aluguel" : "Sem cobrança ativa"} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -198,7 +206,7 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
             <InfoItem label="Inquilino" value={property.tenantName} />
             <InfoItem label="Contato do inquilino" value={property.tenantContact} />
             <InfoItem label="Banco de recebimento" value={property.receivingBank} />
-            <InfoItem label="Está alugado?" value={property.isRented ? "Sim" : "Não"} />
+            <InfoItem label="Situação" value={occupancy} />
           </CardContent>
         </Card>
 
