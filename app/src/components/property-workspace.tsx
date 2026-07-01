@@ -42,6 +42,7 @@ import { supabase } from "@/lib/supabase";
 const STORAGE_KEY = "controle-alugueis.local-properties.v1";
 
 type WorkspaceMode = "overview" | "list" | "new";
+type ContractSaveOptions = { removeExistingContract?: boolean };
 
 type PropertyWorkspaceProps = {
   mode: WorkspaceMode;
@@ -177,7 +178,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
-  async function saveDraft(draft: PropertyDraft, mode: "create" | "edit", contractFile?: File | null) {
+  async function saveDraft(draft: PropertyDraft, mode: "create" | "edit", contractFile?: File | null, options: ContractSaveOptions = {}) {
     const buildingName = draft.buildingName.trim();
     const rentAmount = Number(draft.rentAmount.replace(",", "."));
 
@@ -204,7 +205,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       }
 
       const current = draft.id ? managedProperties.find((property) => property.id === draft.id) : undefined;
-      const payload = buildPropertyMutationPayload(draft, { userId: sessionUserId, mode, current });
+      const payload = buildPropertyMutationPayload(draft, { userId: sessionUserId, mode, current, removeContract: options.removeExistingContract && !contractFile });
       const request = mode === "create"
         ? supabase.from("properties").insert(payload).select(propertyColumns).single()
         : supabase.from("properties").update(payload).eq("id", draft.id ?? "").select(propertyColumns).single();
@@ -266,7 +267,9 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       setFormMessage(
         contractFile
           ? "Imóvel e contrato salvos no Supabase."
-          : mode === "create"
+          : options.removeExistingContract
+            ? "Edição salva e contrato removido do imóvel."
+            : mode === "create"
             ? "Imóvel salvo no Supabase com seu usuário como dono."
             : "Edição salva no Supabase.",
       );
@@ -291,6 +294,36 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
     setNewDraft(emptyPropertyDraft);
     setFormError(null);
     setFormMessage("Rascunho local salvo neste navegador.");
+  }
+
+  async function deleteProperty(property: PropertyRecord) {
+    const confirmed = window.confirm(`Excluir o imóvel "${property.buildingName}"? Essa ação remove o cadastro da sua conta e não pode ser desfeita.`);
+    if (!confirmed) return;
+
+    if (supabase && sessionUserId) {
+      setIsSaving(true);
+      setFormError(null);
+      setFormMessage(null);
+
+      const { error } = await supabase.from("properties").delete().eq("id", property.id);
+
+      setIsSaving(false);
+
+      if (error) {
+        setFormError(`Não foi possível excluir o imóvel (${error.message}).`);
+        return;
+      }
+
+      setManagedProperties((currentProperties) => currentProperties.filter((item) => item.id !== property.id));
+      setEditingDraft((currentDraft) => (currentDraft?.id === property.id ? null : currentDraft));
+      setFormMessage("Imóvel excluído da sua carteira privada.");
+      return;
+    }
+
+    setManagedProperties((currentProperties) => currentProperties.filter((item) => item.id !== property.id));
+    setEditingDraft((currentDraft) => (currentDraft?.id === property.id ? null : currentDraft));
+    setFormError(null);
+    setFormMessage("Rascunho local removido deste navegador.");
   }
 
   return (
@@ -324,6 +357,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           formError={formError}
           formMessage={formMessage}
           isSaving={isSaving}
+          onDelete={deleteProperty}
           onEdit={(property) => {
             setEditingDraft(draftFromProperty(property));
             setFormError(null);
@@ -336,7 +370,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           }}
           onDraftChange={setEditingDraft}
           onFilterChange={setActiveFilter}
-          onSave={(draft, contractFile) => saveDraft(draft, "edit", contractFile)}
+          onSave={(draft, contractFile, options) => saveDraft(draft, "edit", contractFile, options)}
         />
       ) : null}
 
@@ -360,7 +394,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
                 setFormMessage(null);
               }}
               onChange={setNewDraft}
-              onSave={(draft, contractFile) => saveDraft(draft, "create", contractFile)}
+              onSave={(draft, contractFile, options) => saveDraft(draft, "create", contractFile, options)}
               saveLabel={sessionUserId ? "Salvar no Supabase" : "Salvar rascunho"}
             />
           </CardContent>
@@ -593,6 +627,7 @@ function PropertyList({
   isSaving,
   onCancel,
   onDraftChange,
+  onDelete,
   onEdit,
   onFilterChange,
   onSave,
@@ -606,9 +641,10 @@ function PropertyList({
   isSaving: boolean;
   onCancel: () => void;
   onDraftChange: (draft: PropertyDraft) => void;
+  onDelete: (property: PropertyRecord) => void;
   onEdit: (property: PropertyRecord) => void;
   onFilterChange: (filter: PortfolioFilter) => void;
-  onSave: (draft: PropertyDraft, contractFile?: File | null) => void;
+  onSave: (draft: PropertyDraft, contractFile?: File | null, options?: ContractSaveOptions) => void;
 }) {
   const hasProperties = filteredProperties.length > 0;
 
@@ -627,6 +663,7 @@ function PropertyList({
         {editingDraft ? (
           <div className="mb-5 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.06] p-5">
             <PropertyForm
+              key={editingDraft.id ?? "editing-property"}
               draft={editingDraft}
               formError={formError}
               formMessage={formMessage}
@@ -635,6 +672,7 @@ function PropertyList({
               onChange={onDraftChange}
               onSave={onSave}
               saveLabel="Salvar edição"
+              currentContractUrl={filteredProperties.find((property) => property.id === editingDraft.id)?.contractUrl}
             />
           </div>
         ) : null}
@@ -670,7 +708,7 @@ function PropertyList({
         {hasProperties ? (
           <div className="grid gap-3 lg:hidden">
             {filteredProperties.map((property) => (
-              <PropertyMobileCard key={property.id} property={property} onEdit={onEdit} />
+              <PropertyMobileCard key={property.id} property={property} isSaving={isSaving} onDelete={onDelete} onEdit={onEdit} />
             ))}
           </div>
         ) : null}
@@ -717,7 +755,8 @@ function PropertyList({
                     <td className="rounded-r-2xl px-4 py-4">
                       <div className="flex flex-wrap gap-2">
                         <ButtonLink href={`/imoveis/${encodeURIComponent(property.id)}`} variant="secondary">Detalhes</ButtonLink>
-                        <Button variant="secondary" onClick={() => onEdit(property)}>Editar</Button>
+                        <Button variant="secondary" onClick={() => onEdit(property)} disabled={isSaving}>Editar</Button>
+                        <Button type="button" variant="danger" onClick={() => onDelete(property)} disabled={isSaving}>Excluir</Button>
                       </div>
                     </td>
                   </tr>
@@ -732,7 +771,7 @@ function PropertyList({
   );
 }
 
-function PropertyMobileCard({ property, onEdit }: { property: PropertyRecord; onEdit: (property: PropertyRecord) => void }) {
+function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property: PropertyRecord; isSaving: boolean; onDelete: (property: PropertyRecord) => void; onEdit: (property: PropertyRecord) => void }) {
   const status = primaryPropertyStatus(property);
   const alerts = getPropertyAlerts(property).slice(0, 2);
 
@@ -765,7 +804,8 @@ function PropertyMobileCard({ property, onEdit }: { property: PropertyRecord; on
 
       <div className="mt-4 flex flex-wrap gap-2">
         <ButtonLink href={`/imoveis/${encodeURIComponent(property.id)}`} variant="secondary">Detalhes</ButtonLink>
-        <Button type="button" variant="secondary" onClick={() => onEdit(property)}>Editar</Button>
+        <Button type="button" variant="secondary" onClick={() => onEdit(property)} disabled={isSaving}>Editar</Button>
+        <Button type="button" variant="danger" onClick={() => onDelete(property)} disabled={isSaving}>Excluir</Button>
       </div>
     </div>
   );
@@ -789,6 +829,7 @@ function PropertyForm({
   onChange,
   onSave,
   saveLabel,
+  currentContractUrl,
 }: {
   draft: PropertyDraft;
   formError: string | null;
@@ -796,8 +837,9 @@ function PropertyForm({
   isSaving: boolean;
   onCancel: () => void;
   onChange: (draft: PropertyDraft) => void;
-  onSave: (draft: PropertyDraft, contractFile?: File | null) => void;
+  onSave: (draft: PropertyDraft, contractFile?: File | null, options?: ContractSaveOptions) => void;
   saveLabel: string;
+  currentContractUrl?: string;
 }) {
   const paymentDueDay = getMonthlyDueDay(draft.paymentDueDate);
   const dateInputClassName = "text-slate-100 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:bg-emerald-300 [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-100";
@@ -809,7 +851,9 @@ function PropertyForm({
   const [customAdjustmentMonths, setCustomAdjustmentMonths] = useState("12");
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [contractFileError, setContractFileError] = useState<string | null>(null);
+  const [removeExistingContract, setRemoveExistingContract] = useState(false);
   const [isDraggingContract, setIsDraggingContract] = useState(false);
+
   const adjustmentEnabled = adjustmentRule !== "none" && draft.hasAnnualAdjustment;
 
   function updateMonthlyDueDay(value: string) {
@@ -863,6 +907,9 @@ function PropertyForm({
   function selectContractFile(file: File | null) {
     setContractFile(file);
     setContractFileError(file ? getContractFileValidationError(file) ?? null : null);
+    if (file) {
+      setRemoveExistingContract(false);
+    }
   }
 
   return (
@@ -1014,6 +1061,28 @@ function PropertyForm({
               className="min-h-24 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-emerald-300/60"
             />
           </label>
+          {currentContractUrl ? (
+            <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-sm text-slate-300 md:col-span-2 xl:col-span-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-slate-100">Contrato atual registrado</p>
+                  <p className="mt-1 text-slate-500">Você pode manter o anexo atual, substituir anexando outro arquivo, ou remover o vínculo do imóvel.</p>
+                  {removeExistingContract ? <p className="mt-2 text-red-100">O contrato atual será removido ao salvar a edição.</p> : null}
+                </div>
+                <Button
+                  type="button"
+                  variant={removeExistingContract ? "secondary" : "danger"}
+                  onClick={() => {
+                    setRemoveExistingContract((current) => !current);
+                    selectContractFile(null);
+                  }}
+                  disabled={isSaving}
+                >
+                  {removeExistingContract ? "Manter contrato" : "Remover contrato atual"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
           <div
             className={`rounded-2xl border border-dashed p-4 text-sm text-slate-400 transition md:col-span-2 xl:col-span-4 ${
               isDraggingContract ? "border-emerald-300/70 bg-emerald-300/[0.08]" : "border-white/15 bg-slate-950/60 hover:border-emerald-300/40"
@@ -1072,7 +1141,7 @@ function PropertyForm({
       {formMessage ? <p className="text-sm text-emerald-200">{formMessage}</p> : null}
 
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => onSave(draft, contractFile)} disabled={isSaving || Boolean(contractFileError)}>{isSaving ? "Salvando..." : saveLabel}</Button>
+        <Button onClick={() => onSave(draft, contractFile, { removeExistingContract })} disabled={isSaving || Boolean(contractFileError)}>{isSaving ? "Salvando..." : saveLabel}</Button>
         <Button variant="secondary" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
       </div>
     </div>

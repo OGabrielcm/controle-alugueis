@@ -45,6 +45,7 @@ type BuildPayloadOptions = {
   userId: string;
   mode: PropertyMutationMode;
   current?: PropertyRecord;
+  removeContract?: boolean;
 };
 
 function nullable(value: string | undefined) {
@@ -57,7 +58,7 @@ function nullableNumber(value: number | undefined) {
 
 export function buildPropertyMutationPayload(
   draft: PropertyDraft,
-  { userId, current }: BuildPayloadOptions,
+  { userId, current, removeContract }: BuildPayloadOptions,
 ): SupabasePropertyMutationPayload {
   const property = propertyFromDraft(draft, current);
 
@@ -89,7 +90,7 @@ export function buildPropertyMutationPayload(
     iptu_paid_by_tenant: property.iptuPaidByTenant,
     garbage_fee_amount: nullableNumber(property.garbageFeeAmount),
     laudemio_amount: nullableNumber(property.laudemioAmount),
-    contract_url: nullable(property.contractUrl),
+    contract_url: removeContract ? null : nullable(property.contractUrl),
     owner_id: userId,
     receiving_bank: nullable(property.receivingBank),
     has_rent_deposit: property.hasRentDeposit,

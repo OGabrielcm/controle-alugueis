@@ -1,9 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContractAttachmentPanel } from "@/components/contract-attachment-panel";
 import { Badge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMonthlyDueDay } from "@/lib/monthly-due-date";
 import { findPropertyById } from "@/lib/property-detail";
@@ -32,11 +33,13 @@ type PropertyDetailClientProps = {
 };
 
 export function PropertyDetailClient({ routeId, fallbackProperties, fallbackDataSource, supabaseReady }: PropertyDetailClientProps) {
+  const router = useRouter();
   const initialProperty = findPropertyById(fallbackProperties, routeId);
   const [property, setProperty] = useState<PropertyRecord | undefined>(initialProperty);
   const [dataSource, setDataSource] = useState<PropertyDataSource>(fallbackDataSource);
   const [statusMessage, setStatusMessage] = useState(initialProperty ? null : "Validando sessão antes de decidir se o imóvel existe...");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -90,6 +93,34 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
     };
   }, [routeId]);
 
+
+  async function handleDeleteProperty() {
+    if (!property) return;
+
+    const confirmed = window.confirm(`Excluir o imóvel "${property.buildingName}"? Essa ação remove o cadastro da sua conta e não pode ser desfeita.`);
+    if (!confirmed) return;
+
+    if (!supabaseReady || !supabase) {
+      setErrorMessage("Entre com o usuário correto para excluir imóveis privados.");
+      return;
+    }
+
+    setIsDeleting(true);
+    setErrorMessage(null);
+    setStatusMessage("Excluindo imóvel...");
+
+    const { error } = await supabase.from("properties").delete().eq("id", property.id);
+
+    if (error) {
+      setIsDeleting(false);
+      setStatusMessage(null);
+      setErrorMessage(`Não foi possível excluir o imóvel (${error.message}).`);
+      return;
+    }
+
+    router.push("/imoveis");
+  }
+
   if (!property) {
     return (
       <Card>
@@ -139,8 +170,14 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
         <div className="mt-5 flex flex-wrap gap-3">
           <ButtonLink href="/imoveis" variant="secondary">Voltar para imóveis</ButtonLink>
           <ButtonLink href="/imoveis/novo" variant="ghost">Cadastrar outro imóvel</ButtonLink>
+          <Button type="button" variant="danger" onClick={handleDeleteProperty} disabled={isDeleting}>
+            {isDeleting ? "Excluindo..." : "Excluir imóvel"}
+          </Button>
         </div>
       </header>
+
+      {statusMessage ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">{statusMessage}</p> : null}
+      {errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">{errorMessage}</p> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Aluguel" value={formatCurrency(property.rentAmount)} hint={property.isRentPaid ? "Pago na base atual" : "Pendente na base atual"} />

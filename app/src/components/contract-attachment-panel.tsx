@@ -41,6 +41,13 @@ function saveLocalAttachment(propertyId: string, storagePath: string) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...parsed, [propertyId]: storagePath }));
 }
 
+function removeLocalAttachment(propertyId: string) {
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const parsed = stored ? (JSON.parse(stored) as Record<string, string>) : {};
+  delete parsed[propertyId];
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+}
+
 export function ContractAttachmentPanel({ propertyId, initialContractUrl, supabaseReady }: ContractAttachmentPanelProps) {
   const [contractPath, setContractPath] = useState(() => normalizeContractStoragePath(initialContractUrl ?? readLocalAttachment(propertyId)));
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -125,6 +132,44 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
     }
   }
 
+  async function handleRemoveContract() {
+    if (!contractPath) return;
+
+    const confirmed = window.confirm("Remover o contrato anexado deste imóvel? O vínculo será apagado e o arquivo privado será removido quando permitido pelo Storage.");
+    if (!confirmed) return;
+
+    if (!supabaseReady || !supabase) {
+      removeLocalAttachment(propertyId);
+      setContractPath(undefined);
+      setStatusMessage("Contrato removido do rascunho local.");
+      setErrorMessage(null);
+      return;
+    }
+
+    setIsUploading(true);
+    setErrorMessage(null);
+    setStatusMessage("Removendo contrato do imóvel...");
+
+    try {
+      const { error: updateError } = await supabase.from("properties").update({ contract_url: null }).eq("id", propertyId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
+      await supabase.storage.from(CONTRACT_ATTACHMENTS_BUCKET).remove([contractPath]);
+      removeLocalAttachment(propertyId);
+      setContractPath(undefined);
+      setSelectedFile(null);
+      setStatusMessage("Contrato removido do imóvel.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível remover o contrato.");
+      setStatusMessage(null);
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -147,9 +192,14 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         </div>
 
         {contractPath ? (
-          <Button type="button" variant="secondary" onClick={handleOpenContract} disabled={isOpening}>
-            {isOpening ? "Gerando link..." : "Abrir contrato anexado"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={handleOpenContract} disabled={isOpening || isUploading}>
+              {isOpening ? "Gerando link..." : "Abrir contrato anexado"}
+            </Button>
+            <Button type="button" variant="danger" onClick={handleRemoveContract} disabled={isOpening || isUploading}>
+              {isUploading ? "Removendo..." : "Remover contrato"}
+            </Button>
+          </div>
         ) : null}
 
         <label
