@@ -51,6 +51,33 @@ describe("buildPropertyMutationPayload", () => {
     assert.equal("id" in payload, false);
   });
 
+  it("remove o contrato existente quando solicitado na edição", () => {
+    const payload = buildPropertyMutationPayload(
+      { ...draft, id: "22222222-2222-4222-8222-222222222222" },
+      {
+        userId,
+        mode: "edit",
+        current: {
+          id: "22222222-2222-4222-8222-222222222222",
+          buildingName: "Sala Mercês",
+          isRented: true,
+          isRentPaid: false,
+          rentAmount: 3200.75,
+          condoAmount: 0,
+          condoPaidByTenant: false,
+          extraFeePaidByTenant: false,
+          maintenancePaidByTenant: false,
+          iptuPaidByTenant: false,
+          hasRentDeposit: false,
+          contractUrl: "contracts/22222222-2222-4222-8222-222222222222/contrato.pdf",
+        },
+        removeContract: true,
+      },
+    );
+
+    assert.equal(payload.contract_url, null);
+  });
+
   it("envia null para opcionais vazios e remove reajuste quando desativado", () => {
     const payload = buildPropertyMutationPayload(
       {
