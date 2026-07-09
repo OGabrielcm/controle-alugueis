@@ -677,10 +677,12 @@ function PropertyList({
         {!hasProperties ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/60 p-6 text-sm text-slate-300">
             <p className="font-semibold text-white">Nenhum imóvel neste filtro</p>
-            <p className="mt-2 text-slate-400">Troque o filtro ou cadastre um novo imóvel para começar a carteira privada.</p>
+            <p className="mt-2 max-w-2xl leading-6 text-slate-400">
+              Troque o filtro para revisar a carteira completa ou cadastre um novo imóvel quando o cadastro ainda não existir.
+            </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Button type="button" variant="secondary" onClick={() => onFilterChange("all")}>Ver todos</Button>
-              <ButtonLink href="/imoveis/novo">Novo imóvel</ButtonLink>
+              <Button type="button" variant="secondary" onClick={() => onFilterChange("all")}>Ver todos os imóveis</Button>
+              <ButtonLink href="/imoveis/novo">Cadastrar imóvel</ButtonLink>
             </div>
           </div>
         ) : null}
