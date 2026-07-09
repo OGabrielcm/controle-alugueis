@@ -662,11 +662,12 @@ function PropertyList({
             <button
               key={option.id}
               type="button"
+              aria-pressed={option.id === activeFilter}
               onClick={() => onFilterChange(option.id)}
               className={
                 option.id === activeFilter
-                  ? "rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950"
-                  : "rounded-full bg-slate-900 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 transition hover:bg-slate-800"
+                  ? "rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                  : "rounded-full bg-slate-900 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               }
             >
               {option.label} ({option.count})
@@ -676,12 +677,14 @@ function PropertyList({
 
         {!hasProperties ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/60 p-6 text-sm text-slate-300">
-            <p className="font-semibold text-white">Nenhum imóvel neste filtro</p>
+            <p className="font-semibold text-white">{activeFilter === "all" ? "Sua carteira ainda está vazia" : "Nenhum imóvel neste filtro"}</p>
             <p className="mt-2 max-w-2xl leading-6 text-slate-400">
-              Troque o filtro para revisar a carteira completa ou cadastre um novo imóvel quando o cadastro ainda não existir.
+              {activeFilter === "all"
+                ? "Comece cadastrando o primeiro imóvel. Depois você poderá acompanhar pagamentos, contratos e pontos de atenção neste mesmo lugar."
+                : "Troque o filtro para revisar a carteira completa ou cadastre um novo imóvel quando o cadastro ainda não existir."}
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Button type="button" variant="secondary" onClick={() => onFilterChange("all")}>Ver todos os imóveis</Button>
+              {activeFilter !== "all" ? <Button type="button" variant="secondary" onClick={() => onFilterChange("all")}>Ver todos os imóveis</Button> : null}
               <ButtonLink href="/imoveis/novo">Cadastrar imóvel</ButtonLink>
             </div>
           </div>
@@ -831,8 +834,8 @@ function PropertyForm({
   currentContractUrl?: string;
 }) {
   const paymentDueDay = getMonthlyDueDay(draft.paymentDueDate);
-  const dateInputClassName = "text-slate-100 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:bg-emerald-300 [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-100";
-  const selectClassName = "min-h-10 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-300/40 focus:ring-2 focus:ring-emerald-300/20";
+  const dateInputClassName = "text-ink [color-scheme:light] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:bg-primary [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-100";
+  const selectClassName = "min-h-10 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/20";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [adjustmentRule, setAdjustmentRule] = useState<"none" | "contract-start-year" | "contract-end" | "custom-period" | "custom-date">(
     draft.hasAnnualAdjustment ? "custom-date" : "none",
@@ -902,7 +905,13 @@ function PropertyForm({
   }
 
   return (
-    <div className="space-y-6">
+    <form
+      className="space-y-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave(draft, contractFile, { removeExistingContract });
+      }}
+    >
       <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-sm text-cyan-50">
         <p className="font-semibold">Preencha primeiro o essencial</p>
         <p className="mt-1 leading-6 text-cyan-100/75">
@@ -932,19 +941,21 @@ function PropertyForm({
         <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
           <p className="text-sm font-semibold text-white">Situação do imóvel</p>
           <p className="mt-1 text-xs text-slate-500">Cadastre imóveis alugados ou desalugados. Contrato e cobrança só ficam ativos quando o imóvel está alugado.</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2" role="group" aria-label="Situação do imóvel">
             <button
               type="button"
+              aria-pressed={draft.isRented}
               onClick={() => onChange({ ...draft, isRented: true })}
-              className={draft.isRented ? "rounded-xl bg-emerald-300 px-4 py-3 text-left text-sm font-semibold text-slate-950" : "rounded-xl bg-slate-900 px-4 py-3 text-left text-sm font-semibold text-slate-300 ring-1 ring-white/10 transition hover:bg-slate-800"}
+              className={draft.isRented ? "rounded-xl bg-primary px-4 py-3 text-left text-sm font-semibold text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas" : "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink ring-1 ring-line outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"}
             >
               Alugado
               <span className="block text-xs font-normal opacity-75">Tem cobrança ativa, inquilino e contrato vigente ou em revisão.</span>
             </button>
             <button
               type="button"
+              aria-pressed={!draft.isRented}
               onClick={() => onChange({ ...draft, isRented: false, isRentPaid: false })}
-              className={!draft.isRented ? "rounded-xl bg-cyan-300 px-4 py-3 text-left text-sm font-semibold text-slate-950" : "rounded-xl bg-slate-900 px-4 py-3 text-left text-sm font-semibold text-slate-300 ring-1 ring-white/10 transition hover:bg-slate-800"}
+              className={!draft.isRented ? "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink outline-none ring-1 ring-line focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas" : "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink ring-1 ring-line outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"}
             >
               Desalugado
               <span className="block text-xs font-normal opacity-75">Fica na carteira sem cobrança ativa nem contrato obrigatório.</span>
@@ -1149,14 +1160,14 @@ function PropertyForm({
         </div>
       </section>
 
-      {formError ? <p className="text-sm text-red-200">{formError}</p> : null}
-      {formMessage ? <p className="text-sm text-emerald-200">{formMessage}</p> : null}
+      {formError ? <p className="rounded-xl border border-red-300/20 bg-red-400/10 p-3 text-sm text-red-100" role="alert">{formError}</p> : null}
+      {formMessage ? <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-100" role="status">{formMessage}</p> : null}
 
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => onSave(draft, contractFile, { removeExistingContract })} disabled={isSaving || Boolean(contractFileError)}>{isSaving ? "Salvando..." : saveLabel}</Button>
-        <Button variant="secondary" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
+        <Button type="submit" disabled={isSaving || Boolean(contractFileError)}>{isSaving ? "Salvando..." : saveLabel}</Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
       </div>
-    </div>
+    </form>
   );
 }
 

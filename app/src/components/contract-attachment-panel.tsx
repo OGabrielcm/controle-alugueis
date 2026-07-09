@@ -229,7 +229,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
           <input
             type="file"
             accept={`${CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES.join(",")},.pdf,.docx`}
-            className="mt-3 block w-full text-sm text-slate-400 file:mr-4 file:rounded-full file:border-0 file:bg-emerald-300 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950"
+            className="mt-3 block w-full text-sm text-ink-muted file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground"
             disabled={isUploading}
             onChange={(event) => {
               selectFile(event.target.files?.[0] ?? null);

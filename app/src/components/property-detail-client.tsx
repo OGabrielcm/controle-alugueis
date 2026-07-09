@@ -128,17 +128,20 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
   }
 
   if (!property) {
+    const requestFailed = Boolean(errorMessage);
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Imóvel não encontrado nesta sessão</CardTitle>
+          <CardTitle>{requestFailed ? "Não foi possível carregar este imóvel" : "Imóvel não encontrado nesta sessão"}</CardTitle>
           <CardDescription>
-            A página aguardou a autenticação antes de retornar erro, para evitar 404 em imóveis privados recém-criados.
+            {requestFailed
+              ? "Não alteramos nenhum dado. Tente novamente ou entre de novo para atualizar sua sessão privada."
+              : "A página aguardou a autenticação antes de retornar erro, para evitar 404 em imóveis privados recém-criados."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-slate-300">
           {statusMessage ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-cyan-50">{statusMessage}</p> : null}
-          {errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-red-100">{errorMessage}</p> : null}
+          {errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-red-100" role="alert">{errorMessage}</p> : null}
           {!statusMessage && !errorMessage ? (
             <p className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
               Se o imóvel pertence a outra conta, entre com o usuário correto. Se acabou de criar, volte para a lista de imóveis e tente abrir novamente.
