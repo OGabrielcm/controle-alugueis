@@ -104,7 +104,7 @@ export function AuthPanel({ mode }: AuthPanelProps) {
   }
 
   return (
-    <Card className="border-emerald-300/20 bg-emerald-300/[0.04]">
+    <Card className="border-line bg-surface shadow-md shadow-primary/5">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -197,7 +197,7 @@ export function AuthPanel({ mode }: AuthPanelProps) {
             </Button>
             <Link
               href={alternateHref}
-              className="inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
+              className="inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-ink-muted transition hover:bg-surface-muted hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               {copy.alternateLabel}
             </Link>
@@ -206,18 +206,18 @@ export function AuthPanel({ mode }: AuthPanelProps) {
           {mode === "login" ? (
             <Link
               href={PASSWORD_RECOVERY_PATH}
-              className="w-fit text-left text-xs font-medium text-slate-400 underline-offset-4 transition hover:text-emerald-200 hover:underline"
+              className="w-fit text-left text-xs font-medium text-ink-muted underline-offset-4 transition hover:text-primary hover:underline"
             >
               Esqueci minha senha: recuperar por e-mail
             </Link>
           ) : null}
         </form>
 
-        {error ? <p className="rounded-xl border border-red-300/20 bg-red-400/10 p-3 text-sm text-red-100">{error}</p> : null}
-        {message ? <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-100">{message}</p> : null}
+        {error ? <p className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger">{error}</p> : null}
+        {message ? <p className="rounded-xl border border-primary/20 bg-primary-soft p-3 text-sm text-primary">{message}</p> : null}
 
-        <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm leading-6 text-slate-400">
-          <p className="font-semibold text-slate-200">Fluxo separado e protegido</p>
+        <div className="rounded-2xl border border-line bg-surface-muted p-4 text-sm leading-6 text-ink-muted">
+          <p className="font-semibold text-ink">Fluxo separado e protegido</p>
           <p className="mt-1">
             Login e cadastro ficam fora da área operacional. Cadastro não conta como login verificado: confirme o e-mail, entre pela página de login e só então acesse o dashboard privado.
           </p>

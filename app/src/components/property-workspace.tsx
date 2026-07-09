@@ -19,6 +19,7 @@ import {
   getPropertyAlerts,
   primaryPropertyStatus,
   propertyExpenseTotal,
+  propertyOccupancyStatus,
   summarizePortfolio,
 } from "@/lib/rentals";
 import { type ContractAgenda, buildContractAgenda, getTodayDateString } from "@/lib/contract-agenda";
@@ -55,6 +56,11 @@ const badgeVariantByStatus = {
   Ok: "success",
   Revisar: "warning",
   Atenção: "danger",
+} as const;
+
+const badgeVariantByOccupancy = {
+  Alugado: "success",
+  Desalugado: "info",
 } as const;
 
 function loadLocalProperties(fallback: PropertyRecord[]) {
@@ -462,10 +468,10 @@ function Overview({
   contractAgenda: ContractAgenda;
 }) {
   const stats = [
-    { label: "Receita prevista", value: formatCurrency(summary.grossRent), hint: `${summary.propertyCount} imóveis mapeados` },
-    { label: "Receita recebida", value: formatCurrency(summary.receivedRent), hint: `${summary.paidRentCount}/${summary.propertyCount} aluguéis pagos` },
+    { label: "Receita contratada", value: formatCurrency(summary.grossRent), hint: `${summary.rentedCount}/${summary.propertyCount} imóveis alugados` },
+    { label: "Receita recebida", value: formatCurrency(summary.receivedRent), hint: `${summary.paidRentCount}/${summary.rentedCount} aluguéis pagos` },
     { label: "Receita pendente", value: formatCurrency(summary.pendingRent), hint: `${summary.pendingRentCount} aluguéis pendentes` },
-    { label: "Saldo estimado", value: formatCurrency(summary.estimatedBalance), hint: "Recebido - despesas do proprietário" },
+    { label: "Desalugados", value: String(summary.propertyCount - summary.rentedCount), hint: "Cadastrados sem contrato vigente" },
   ];
 
   return (
@@ -613,12 +619,17 @@ function PropertyList({
 
   return (
     <Card>
-      <CardHeader className="gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <CardTitle>Carteira de imóveis</CardTitle>
-          <CardDescription>
-            {filteredProperties.length} imóvel(is) neste filtro. No celular, cada imóvel vira um cartão com ações claras.
-          </CardDescription>
+      <CardHeader className="gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-3">
+          <div>
+            <CardTitle>Carteira de imóveis</CardTitle>
+            <CardDescription>
+              {filteredProperties.length} imóvel(is) neste filtro. Use os filtros para priorizar cobranças, dados faltantes e contratos que precisam de atenção.
+            </CardDescription>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-3 text-sm leading-6 text-slate-400">
+            <span className="font-semibold text-slate-200">Fluxo sugerido:</span> abra Detalhes para revisar contrato e histórico, use Editar para corrigir dados rápidos e cadastre um novo imóvel pelo botão ao lado.
+          </div>
         </div>
         <ButtonLink href="/imoveis/novo">Novo imóvel</ButtonLink>
       </CardHeader>
@@ -651,11 +662,12 @@ function PropertyList({
             <button
               key={option.id}
               type="button"
+              aria-pressed={option.id === activeFilter}
               onClick={() => onFilterChange(option.id)}
               className={
                 option.id === activeFilter
-                  ? "rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950"
-                  : "rounded-full bg-slate-900 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 transition hover:bg-slate-800"
+                  ? "rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                  : "rounded-full bg-slate-900 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               }
             >
               {option.label} ({option.count})
@@ -665,11 +677,15 @@ function PropertyList({
 
         {!hasProperties ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/60 p-6 text-sm text-slate-300">
-            <p className="font-semibold text-white">Nenhum imóvel neste filtro</p>
-            <p className="mt-2 text-slate-400">Troque o filtro ou cadastre um novo imóvel para começar a carteira privada.</p>
+            <p className="font-semibold text-white">{activeFilter === "all" ? "Sua carteira ainda está vazia" : "Nenhum imóvel neste filtro"}</p>
+            <p className="mt-2 max-w-2xl leading-6 text-slate-400">
+              {activeFilter === "all"
+                ? "Comece cadastrando o primeiro imóvel. Depois você poderá acompanhar pagamentos, contratos e pontos de atenção neste mesmo lugar."
+                : "Troque o filtro para revisar a carteira completa ou cadastre um novo imóvel quando o cadastro ainda não existir."}
+            </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Button type="button" variant="secondary" onClick={() => onFilterChange("all")}>Ver todos</Button>
-              <ButtonLink href="/imoveis/novo">Novo imóvel</ButtonLink>
+              {activeFilter !== "all" ? <Button type="button" variant="secondary" onClick={() => onFilterChange("all")}>Ver todos os imóveis</Button> : null}
+              <ButtonLink href="/imoveis/novo">Cadastrar imóvel</ButtonLink>
             </div>
           </div>
         ) : null}
@@ -689,6 +705,7 @@ function PropertyList({
               <tr>
                 <th className="px-4 py-2">Imóvel</th>
                 <th className="px-4 py-2">Inquilino</th>
+                <th className="px-4 py-2">Situação</th>
                 <th className="px-4 py-2">Pagamento</th>
                 <th className="px-4 py-2">Aluguel</th>
                 <th className="px-4 py-2">Despesas dono</th>
@@ -700,6 +717,7 @@ function PropertyList({
             <tbody>
               {filteredProperties.map((property) => {
                 const status = primaryPropertyStatus(property);
+                const occupancy = propertyOccupancyStatus(property);
                 return (
                   <tr key={property.id} className="bg-slate-900/80 shadow-lg shadow-black/10">
                     <td className="rounded-l-2xl px-4 py-4 font-medium text-white">
@@ -713,9 +731,10 @@ function PropertyList({
                       </div>
                     </td>
                     <td className="px-4 py-4 text-slate-300">{property.tenantName ?? "Não informado"}</td>
+                    <td className="px-4 py-4"><Badge variant={badgeVariantByOccupancy[occupancy]}>{occupancy}</Badge></td>
                     <td className="px-4 py-4 text-slate-300">
-                      <div>{formatMonthlyDueDay(property.paymentDueDate)}</div>
-                      <div className="text-xs text-slate-500">{property.isRentPaid ? "Pago" : "Pendente"}</div>
+                      <div>{property.isRented ? formatMonthlyDueDay(property.paymentDueDate) : "Sem cobrança ativa"}</div>
+                      <div className="text-xs text-slate-500">{property.isRented ? (property.isRentPaid ? "Pago" : "Pendente") : "Desalugado"}</div>
                     </td>
                     <td className="px-4 py-4 text-slate-100">{formatCurrency(property.rentAmount)}</td>
                     <td className="px-4 py-4 text-slate-100">{formatCurrency(propertyExpenseTotal(property))}</td>
@@ -742,6 +761,7 @@ function PropertyList({
 
 function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property: PropertyRecord; isSaving: boolean; onDelete: (property: PropertyRecord) => void; onEdit: (property: PropertyRecord) => void }) {
   const status = primaryPropertyStatus(property);
+  const occupancy = propertyOccupancyStatus(property);
   const alerts = getPropertyAlerts(property).slice(0, 2);
 
   return (
@@ -753,13 +773,16 @@ function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property
           </Link>
           <p className="mt-1 text-sm text-slate-500">{property.tenantName || "Sem inquilino informado"}</p>
         </div>
-        <Badge variant={badgeVariantByStatus[status]}>{status}</Badge>
+        <div className="flex flex-col gap-1 text-right">
+          <Badge variant={badgeVariantByOccupancy[occupancy]}>{occupancy}</Badge>
+          <Badge variant={badgeVariantByStatus[status]}>{status}</Badge>
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <CompactInfo label="Aluguel" value={formatCurrency(property.rentAmount)} />
-        <CompactInfo label="Pagamento" value={property.isRentPaid ? "Pago" : "Pendente"} />
-        <CompactInfo label="Vencimento" value={formatMonthlyDueDay(property.paymentDueDate)} />
+        <CompactInfo label="Pagamento" value={property.isRented ? (property.isRentPaid ? "Pago" : "Pendente") : "Sem cobrança"} />
+        <CompactInfo label="Vencimento" value={property.isRented ? formatMonthlyDueDay(property.paymentDueDate) : "—"} />
         <CompactInfo label="Banco" value={property.receivingBank || "—"} />
       </div>
 
@@ -811,8 +834,8 @@ function PropertyForm({
   currentContractUrl?: string;
 }) {
   const paymentDueDay = getMonthlyDueDay(draft.paymentDueDate);
-  const dateInputClassName = "text-slate-100 [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:bg-emerald-300 [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-100";
-  const selectClassName = "min-h-10 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-300/40 focus:ring-2 focus:ring-emerald-300/20";
+  const dateInputClassName = "text-ink [color-scheme:light] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded [&::-webkit-calendar-picker-indicator]:bg-primary [&::-webkit-calendar-picker-indicator]:p-1 [&::-webkit-calendar-picker-indicator]:opacity-100";
+  const selectClassName = "min-h-10 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-primary/20";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [adjustmentRule, setAdjustmentRule] = useState<"none" | "contract-start-year" | "contract-end" | "custom-period" | "custom-date">(
     draft.hasAnnualAdjustment ? "custom-date" : "none",
@@ -882,7 +905,13 @@ function PropertyForm({
   }
 
   return (
-    <div className="space-y-6">
+    <form
+      className="space-y-6"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave(draft, contractFile, { removeExistingContract });
+      }}
+    >
       <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-sm text-cyan-50">
         <p className="font-semibold">Preencha primeiro o essencial</p>
         <p className="mt-1 leading-6 text-cyan-100/75">
@@ -909,12 +938,36 @@ function PropertyForm({
             <Input value={draft.receivingBank} onChange={(event) => onChange({ ...draft, receivingBank: event.target.value })} placeholder="Ex.: Nubank" />
           </Label>
         </div>
+        <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+          <p className="text-sm font-semibold text-white">Situação do imóvel</p>
+          <p className="mt-1 text-xs text-slate-500">Cadastre imóveis alugados ou desalugados. Contrato e cobrança só ficam ativos quando o imóvel está alugado.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2" role="group" aria-label="Situação do imóvel">
+            <button
+              type="button"
+              aria-pressed={draft.isRented}
+              onClick={() => onChange({ ...draft, isRented: true })}
+              className={draft.isRented ? "rounded-xl bg-primary px-4 py-3 text-left text-sm font-semibold text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas" : "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink ring-1 ring-line outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"}
+            >
+              Alugado
+              <span className="block text-xs font-normal opacity-75">Tem cobrança ativa, inquilino e contrato vigente ou em revisão.</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={!draft.isRented}
+              onClick={() => onChange({ ...draft, isRented: false, isRentPaid: false })}
+              className={!draft.isRented ? "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink outline-none ring-1 ring-line focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas" : "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink ring-1 ring-line outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"}
+            >
+              Desalugado
+              <span className="block text-xs font-normal opacity-75">Fica na carteira sem cobrança ativa nem contrato obrigatório.</span>
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-3">
         <div>
           <p className="text-sm font-semibold text-white">Inquilino e aluguel</p>
-          <p className="text-xs text-slate-500">Campos mínimos para acompanhar cobrança e contato.</p>
+          <p className="text-xs text-slate-500">{draft.isRented ? "Campos para acompanhar cobrança e contato." : "Opcional enquanto o imóvel estiver desalugado."}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
@@ -943,20 +996,21 @@ function PropertyForm({
             <Input inputMode="decimal" value={draft.rentAmount} onChange={(event) => onChange({ ...draft, rentAmount: event.target.value })} placeholder="0,00" />
           </Label>
           <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
-            <input type="checkbox" checked={draft.isRented} onChange={(event) => onChange({ ...draft, isRented: event.target.checked })} className="size-4 accent-emerald-300" />
-            Está alugado
-          </label>
-          <label className="flex min-h-10 items-center gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
-            <input type="checkbox" checked={draft.isRentPaid} onChange={(event) => onChange({ ...draft, isRentPaid: event.target.checked })} className="size-4 accent-emerald-300" />
+            <input type="checkbox" checked={draft.isRentPaid} disabled={!draft.isRented} onChange={(event) => onChange({ ...draft, isRentPaid: event.target.checked })} className="size-4 accent-emerald-300 disabled:opacity-50" />
             Aluguel pago
           </label>
+          {!draft.isRented ? (
+            <div className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-2 text-sm text-cyan-50">
+              Imóvel desalugado não entra em receita pendente nem exige contrato vigente.
+            </div>
+          ) : null}
         </div>
       </section>
 
       <section className="space-y-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.04] p-4">
         <div>
           <p className="text-sm font-semibold text-white">Base contratual</p>
-          <p className="text-xs text-slate-500">Registre as datas principais, a regra de reajuste e deixe o anexo como opcional para adicionar depois.</p>
+          <p className="text-xs text-slate-500">{draft.isRented ? "Registre datas, regra de reajuste e anexo opcional após revisão manual." : "Opcional: use apenas quando existir contrato vigente ou histórico que você queira guardar."}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
@@ -1106,14 +1160,14 @@ function PropertyForm({
         </div>
       </section>
 
-      {formError ? <p className="text-sm text-red-200">{formError}</p> : null}
-      {formMessage ? <p className="text-sm text-emerald-200">{formMessage}</p> : null}
+      {formError ? <p className="rounded-xl border border-red-300/20 bg-red-400/10 p-3 text-sm text-red-100" role="alert">{formError}</p> : null}
+      {formMessage ? <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-100" role="status">{formMessage}</p> : null}
 
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => onSave(draft, contractFile, { removeExistingContract })} disabled={isSaving || Boolean(contractFileError)}>{isSaving ? "Salvando..." : saveLabel}</Button>
-        <Button variant="secondary" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
+        <Button type="submit" disabled={isSaving || Boolean(contractFileError)}>{isSaving ? "Salvando..." : saveLabel}</Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
       </div>
-    </div>
+    </form>
   );
 }
 

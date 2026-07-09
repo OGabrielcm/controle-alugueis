@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Building2, FileSpreadsheet, Home, Plus, TableProperties } from "lucide-react";
 import { SessionControl } from "@/components/session-control";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { DASHBOARD_HOME, LOGIN_PATH, isAuthRoute, isOperationalRoute } from "@/lib/session-routes";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ const navItems = [
   { href: DASHBOARD_HOME, label: "Resumo", icon: Home },
   { href: "/imoveis", label: "Imóveis", icon: TableProperties },
   { href: "/imoveis/novo", label: "Novo imóvel", icon: Plus },
-  { href: "/importar", label: "Importar", icon: FileSpreadsheet },
+  { href: "/importar", label: "Importação (em breve)", icon: FileSpreadsheet },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -64,16 +65,21 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (authRoute) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100">
-        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.10),transparent_28%)]" />
-        <main className="relative min-h-screen">{children}</main>
+      <div className="min-h-screen bg-canvas text-ink">
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,var(--app-glow-primary),transparent_30%),radial-gradient(circle_at_top_right,var(--app-glow-secondary),transparent_32%)]" />
+        <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-5 py-5">
+          <div className="flex justify-end">
+            <ThemeToggle />
+          </div>
+          <main className="flex-1">{children}</main>
+        </div>
       </div>
     );
   }
 
   if (operationalRoute && verifiedPathname !== pathname) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-950 px-5 text-center text-slate-100">
+      <div className="grid min-h-screen place-items-center bg-canvas px-5 text-center text-ink">
         <div>
           <p className="text-sm font-medium text-emerald-300">Validando sessão</p>
           <p className="mt-2 text-sm text-slate-400">Se não houver login ativo, você volta para a entrada privada.</p>
@@ -83,33 +89,38 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.10),transparent_28%)]" />
+    <div className="min-h-screen bg-canvas text-ink">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,var(--app-glow-primary),transparent_30%),radial-gradient(circle_at_top_right,var(--app-glow-secondary),transparent_32%)]" />
       <div className="relative mx-auto grid min-h-screen w-full max-w-[1500px] lg:grid-cols-[280px_1fr]">
-        <aside className="border-b border-white/10 bg-slate-950/85 px-4 py-4 backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
-          <Link href={DASHBOARD_HOME} className="flex items-center gap-3 rounded-2xl px-2 py-2">
-            <span className="grid size-10 place-items-center rounded-2xl bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-950/20">
-              <Building2 size={20} />
-            </span>
-            <span>
-              <span className="block text-sm font-semibold text-white">Controle de aluguéis</span>
-              <span className="block text-xs text-slate-500">Carteira imobiliária</span>
-            </span>
-          </Link>
+        <aside className="border-b border-line bg-surface/90 px-4 py-4 backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+          <div className="flex items-center justify-between gap-3">
+            <Link href={DASHBOARD_HOME} className="flex items-center gap-3 rounded-2xl px-2 py-2">
+              <span className="grid size-10 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/15">
+                <Building2 size={20} />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-ink">Controle de aluguéis</span>
+                <span className="block text-xs text-ink-muted">Carteira imobiliária</span>
+              </span>
+            </Link>
+            <ThemeToggle />
+          </div>
 
           <nav className="mt-5 flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active =
+                pathname === item.href ||
+                (item.href === "/imoveis" && pathname.startsWith("/imoveis/") && pathname !== "/imoveis/novo");
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950",
+                    "flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
                     active
-                      ? "border border-emerald-300/25 bg-emerald-300/[0.12] text-emerald-50 shadow-sm shadow-emerald-950/20"
-                      : "text-slate-400 hover:bg-white/5 hover:text-slate-100",
+                      ? "border border-primary/25 bg-primary-soft text-primary shadow-sm shadow-primary/10"
+                      : "text-ink-muted hover:bg-surface-muted hover:text-ink",
                   )}
                 >
                   <Icon size={17} />

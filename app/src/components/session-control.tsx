@@ -44,7 +44,7 @@ export function SessionControl() {
 
   if (!user) {
     return (
-      <div className="mt-3 hidden rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-50 lg:block">
+      <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-50 lg:mt-3 lg:p-4">
         <p className="font-semibold">MVP privado</p>
         <p className="mt-1 text-xs leading-5 text-emerald-100/75">
           Login e cadastro ficam fora do dashboard operacional.
@@ -59,7 +59,7 @@ export function SessionControl() {
   }
 
   return (
-    <div className="mt-3 hidden rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-50 lg:block">
+    <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-50 lg:mt-3 lg:p-4">
       <div className="flex items-start gap-2">
         <UserCircle className="mt-0.5 shrink-0" size={17} />
         <div className="min-w-0">

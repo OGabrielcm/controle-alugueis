@@ -293,15 +293,15 @@ export function propertyExpenseTotal(item: PropertyRecord) {
 }
 
 export function monthlyRevenue(items: PropertyRecord[]) {
-  return items.reduce((sum, item) => sum + item.rentAmount, 0);
+  return items.reduce((sum, item) => sum + (item.isRented ? item.rentAmount : 0), 0);
 }
 
 export function receivedRevenue(items: PropertyRecord[]) {
-  return items.reduce((sum, item) => sum + (item.isRentPaid ? item.rentAmount : 0), 0);
+  return items.reduce((sum, item) => sum + (item.isRented && item.isRentPaid ? item.rentAmount : 0), 0);
 }
 
 export function pendingRevenue(items: PropertyRecord[]) {
-  return items.reduce((sum, item) => sum + (item.isRentPaid ? 0 : item.rentAmount), 0);
+  return items.reduce((sum, item) => sum + (item.isRented && !item.isRentPaid ? item.rentAmount : 0), 0);
 }
 
 export function monthlyCondoTotal(items: PropertyRecord[]) {
@@ -313,15 +313,15 @@ export function ownerPaidCondoTotal(items: PropertyRecord[]) {
 }
 
 export function paidRentCount(items: PropertyRecord[]) {
-  return items.filter((item) => item.isRentPaid).length;
+  return items.filter((item) => item.isRented && item.isRentPaid).length;
 }
 
 export function pendingRentCount(items: PropertyRecord[]) {
-  return items.filter((item) => !item.isRentPaid).length;
+  return items.filter((item) => item.isRented && !item.isRentPaid).length;
 }
 
 export function pendingReviewCount(items: PropertyRecord[]) {
-  return items.filter((item) => !item.contractEndDate || !item.tenantName).length;
+  return items.filter((item) => item.isRented && (!item.contractEndDate || !item.tenantName)).length;
 }
 
 export function getPropertyAlerts(item: PropertyRecord): PropertyAlert[] {
@@ -348,7 +348,7 @@ export function getPropertyAlerts(item: PropertyRecord): PropertyAlert[] {
     alerts.push({ label: "Aluguel pendente na base", severity: "danger" });
   }
 
-  if (!item.receivingBank) {
+  if (item.isRented && !item.receivingBank) {
     alerts.push({ label: "Banco de recebimento não informado", severity: "warning" });
   }
 
@@ -375,17 +375,25 @@ export function primaryPropertyStatus(item: PropertyRecord) {
   return "Ok";
 }
 
-export type PortfolioFilter = "all" | "paid" | "pending" | "attention" | "review";
+export function propertyOccupancyStatus(item: PropertyRecord) {
+  return item.isRented ? "Alugado" : "Desalugado";
+}
+
+export type PortfolioFilter = "all" | "rented" | "unrented" | "paid" | "pending" | "attention" | "review";
 
 export function filterProperties(items: PropertyRecord[], filter: PortfolioFilter) {
   return items.filter((item) => {
     const status = primaryPropertyStatus(item);
 
     switch (filter) {
+      case "rented":
+        return item.isRented;
+      case "unrented":
+        return !item.isRented;
       case "paid":
-        return item.isRentPaid;
+        return item.isRented && item.isRentPaid;
       case "pending":
-        return !item.isRentPaid;
+        return item.isRented && !item.isRentPaid;
       case "attention":
         return status === "Atenção";
       case "review":
@@ -400,6 +408,8 @@ export function filterProperties(items: PropertyRecord[], filter: PortfolioFilte
 export function getFilterOptions(items: PropertyRecord[]) {
   const options: Array<{ id: PortfolioFilter; label: string; count: number }> = [
     { id: "all", label: "Todos", count: items.length },
+    { id: "rented", label: "Alugados", count: filterProperties(items, "rented").length },
+    { id: "unrented", label: "Desalugados", count: filterProperties(items, "unrented").length },
     { id: "paid", label: "Pagos", count: filterProperties(items, "paid").length },
     { id: "pending", label: "Pendentes", count: filterProperties(items, "pending").length },
     { id: "attention", label: "Atenção", count: filterProperties(items, "attention").length },
@@ -414,7 +424,7 @@ export function getPriorityGroups(items: PropertyRecord[]) {
     pendingRent: items.filter((item) => item.isRented && !item.isRentPaid),
     incompleteData: items.filter((item) => item.isRented && (!item.tenantName || !item.contractEndDate)),
     highExpenses: items.filter((item) => propertyExpenseTotal(item) >= 1000),
-    missingBank: items.filter((item) => !item.receivingBank),
+    missingBank: items.filter((item) => item.isRented && !item.receivingBank),
   };
 }
 
