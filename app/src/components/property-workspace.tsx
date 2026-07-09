@@ -619,12 +619,17 @@ function PropertyList({
 
   return (
     <Card>
-      <CardHeader className="gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <CardTitle>Carteira de imóveis</CardTitle>
-          <CardDescription>
-            {filteredProperties.length} imóvel(is) neste filtro. No celular, cada imóvel vira um cartão com ações claras.
-          </CardDescription>
+      <CardHeader className="gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-3">
+          <div>
+            <CardTitle>Carteira de imóveis</CardTitle>
+            <CardDescription>
+              {filteredProperties.length} imóvel(is) neste filtro. Use os filtros para priorizar cobranças, dados faltantes e contratos que precisam de atenção.
+            </CardDescription>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-3 text-sm leading-6 text-slate-400">
+            <span className="font-semibold text-slate-200">Fluxo sugerido:</span> abra Detalhes para revisar contrato e histórico, use Editar para corrigir dados rápidos e cadastre um novo imóvel pelo botão ao lado.
+          </div>
         </div>
         <ButtonLink href="/imoveis/novo">Novo imóvel</ButtonLink>
       </CardHeader>
