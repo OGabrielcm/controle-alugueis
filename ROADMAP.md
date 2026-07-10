@@ -44,6 +44,7 @@ Critério: app mostra pendências, dados incompletos e pontos de atenção por i
 - [HITL] Validar anexos com arquivo fake, duas contas e Storage privado antes de usar contratos reais.
 - [HITL] Validar datas reais e regras de cobrança antes de tratar vencimento/contrato como operacional.
 - [AFK] Futuro: transformar a agenda contratual em notificações por e-mail quando houver persistência real e datas atuais.
+- [AFK] Futuro: adicionar uma galeria privada por imóvel, com múltiplas imagens, miniaturas, upload no Storage privado e RLS por `owner_id`; não implementar junto do MVP atual nem usar URLs públicas.
 
 ## Fase 5 — Importação de planilha [HITL]
 Critério: usuário envia CSV/XLSX e pré-visualiza os dados antes de importar.
