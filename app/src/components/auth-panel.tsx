@@ -63,6 +63,9 @@ export function AuthPanel({ mode }: AuthPanelProps) {
           data: {
             full_name: validated.data.fullName,
           },
+          // The link returns to the same public origin where the person started signup.
+          // Supabase must allow this exact origin in Authentication → URL Configuration.
+          emailRedirectTo: `${window.location.origin}${SIGNUP_CONFIRMATION_PATH}`,
         },
       });
       setStatus("idle");
