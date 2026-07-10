@@ -68,7 +68,7 @@ export function SessionControl() {
         </div>
       </div>
       <button
-        className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-100/60 transition hover:text-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200/15 px-3 text-xs font-medium text-emerald-100/75 transition hover:bg-emerald-200/10 hover:text-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 lg:min-h-0 lg:w-auto lg:justify-start lg:border-0 lg:px-0"
         type="button"
         onClick={signOut}
         disabled={isSigningOut}

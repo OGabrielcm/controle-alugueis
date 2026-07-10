@@ -140,12 +140,12 @@
   --color-emerald-50: var(--secondary-foreground);
   --color-cyan-400: var(--chart-2);
   --color-cyan-300: var(--accent);
-  --color-cyan-100: var(--accent-foreground);
-  --color-cyan-50: var(--accent-foreground);
+  --color-cyan-100: var(--muted-foreground);
+  --color-cyan-50: var(--foreground);
   --color-amber-400: var(--chart-2);
   --color-amber-300: var(--accent);
-  --color-amber-100: var(--accent-foreground);
-  --color-amber-50: var(--accent-foreground);
+  --color-amber-100: var(--muted-foreground);
+  --color-amber-50: var(--foreground);
   --color-red-400: var(--destructive);
   --color-red-300: var(--destructive);
   --color-red-200: var(--destructive);

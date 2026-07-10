@@ -631,7 +631,7 @@ function PropertyList({
             <span className="font-semibold text-slate-200">Fluxo sugerido:</span> abra Detalhes para revisar contrato e histórico, use Editar para corrigir dados rápidos e cadastre um novo imóvel pelo botão ao lado.
           </div>
         </div>
-        <ButtonLink href="/imoveis/novo">Novo imóvel</ButtonLink>
+        <ButtonLink href="/imoveis/novo" className="w-full sm:w-auto">Novo imóvel</ButtonLink>
       </CardHeader>
       <CardContent>
         {editingDraft ? (
@@ -683,7 +683,7 @@ function PropertyList({
                 ? "Comece cadastrando o primeiro imóvel. Depois você poderá acompanhar pagamentos, contratos e pontos de atenção neste mesmo lugar."
                 : "Troque o filtro para revisar a carteira completa ou cadastre um novo imóvel quando o cadastro ainda não existir."}
             </p>
-            <div className="mt-4 flex flex-wrap gap-3">
+            <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
               {activeFilter !== "all" ? <Button type="button" variant="secondary" onClick={() => onFilterChange("all")}>Ver todos os imóveis</Button> : null}
               <ButtonLink href="/imoveis/novo">Cadastrar imóvel</ButtonLink>
             </div>
@@ -766,14 +766,14 @@ function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property
 
   return (
     <div className="rounded-2xl bg-slate-900/80 p-4 ring-1 ring-white/10">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <Link href={`/imoveis/${encodeURIComponent(property.id)}`} className="text-base font-semibold text-white hover:text-emerald-300">
             {property.buildingName}
           </Link>
           <p className="mt-1 text-sm text-slate-500">{property.tenantName || "Sem inquilino informado"}</p>
         </div>
-        <div className="flex flex-col gap-1 text-right">
+        <div className="flex flex-wrap gap-1 sm:flex-col sm:items-end sm:text-right">
           <Badge variant={badgeVariantByOccupancy[occupancy]}>{occupancy}</Badge>
           <Badge variant={badgeVariantByStatus[status]}>{status}</Badge>
         </div>
@@ -794,10 +794,10 @@ function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property
         </div>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <ButtonLink href={`/imoveis/${encodeURIComponent(property.id)}`} variant="secondary">Detalhes</ButtonLink>
         <Button type="button" variant="secondary" onClick={() => onEdit(property)} disabled={isSaving}>Editar</Button>
-        <Button type="button" variant="danger" onClick={() => onDelete(property)} disabled={isSaving} title="Excluir somente imóveis de teste ou cadastros duplicados">Excluir</Button>
+        <Button className="col-span-2" type="button" variant="danger" onClick={() => onDelete(property)} disabled={isSaving} title="Excluir somente imóveis de teste ou cadastros duplicados">Excluir</Button>
       </div>
     </div>
   );
@@ -1093,6 +1093,7 @@ function PropertyForm({
                   {removeExistingContract ? <p className="mt-2 text-red-100">O contrato atual será removido ao salvar a edição.</p> : null}
                 </div>
                 <Button
+                  className="w-full sm:w-auto"
                   type="button"
                   variant={removeExistingContract ? "secondary" : "danger"}
                   onClick={() => {
@@ -1137,7 +1138,7 @@ function PropertyForm({
                 {contractFile ? <p className="mt-2 text-cyan-100">Selecionado: {contractFile.name}</p> : null}
                 {contractFileError ? <p className="mt-2 text-red-200">{contractFileError}</p> : null}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
                 <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={isSaving}>
                   Anexar arquivo
                 </Button>
@@ -1163,7 +1164,7 @@ function PropertyForm({
       {formError ? <p className="rounded-xl border border-red-300/20 bg-red-400/10 p-3 text-sm text-red-100" role="alert">{formError}</p> : null}
       {formMessage ? <p className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-3 text-sm text-emerald-100" role="status">{formMessage}</p> : null}
 
-      <div className="flex flex-wrap gap-3">
+      <div className="grid gap-3 sm:flex sm:flex-wrap">
         <Button type="submit" disabled={isSaving || Boolean(contractFileError)}>{isSaving ? "Salvando..." : saveLabel}</Button>
         <Button type="button" variant="secondary" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
       </div>

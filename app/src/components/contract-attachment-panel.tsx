@@ -192,7 +192,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         </div>
 
         {contractPath ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:flex sm:flex-wrap">
             <Button type="button" variant="secondary" onClick={handleOpenContract} disabled={isOpening || isUploading}>
               {isOpening ? "Gerando link..." : "Abrir contrato anexado"}
             </Button>
@@ -229,7 +229,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
           <input
             type="file"
             accept={`${CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES.join(",")},.pdf,.docx`}
-            className="mt-3 block w-full text-sm text-ink-muted file:mr-4 file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground"
+            className="mt-3 block max-w-full overflow-hidden text-ellipsis text-sm text-ink-muted file:mb-2 file:block file:max-w-full file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground sm:file:mb-0 sm:file:mr-4 sm:file:inline-block"
             disabled={isUploading}
             onChange={(event) => {
               selectFile(event.target.files?.[0] ?? null);
@@ -240,7 +240,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         {statusMessage ? <p className="text-sm text-cyan-100">{statusMessage}</p> : null}
         {errorMessage ? <p className="text-sm text-red-200">{errorMessage}</p> : null}
 
-        <Button onClick={handleUpload} disabled={isUploading || !selectedFile}>
+        <Button className="w-full sm:w-auto" onClick={handleUpload} disabled={isUploading || !selectedFile}>
           {isUploading ? "Enviando..." : "Enviar contrato"}
         </Button>
       </CardContent>

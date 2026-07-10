@@ -31,8 +31,8 @@ export function ThemeToggle() {
     };
   }, []);
 
-  function toggleTheme() {
-    const nextTheme: Theme = theme === "light" ? "dark" : "light";
+  function setDarkTheme(enabled: boolean) {
+    const nextTheme: Theme = enabled ? "dark" : "light";
     applyTheme(nextTheme);
     setTheme(nextTheme);
 
@@ -48,14 +48,12 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      onClick={toggleTheme}
-      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-sm font-semibold text-ink shadow-sm shadow-primary/5 transition hover:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
-      aria-pressed={isDark}
+      onClick={() => setDarkTheme(!isDark)}
+      className="inline-grid size-10 place-items-center rounded-lg text-ink-muted transition hover:bg-surface-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
       aria-label={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
       title={isDark ? "Mudar para tema claro" : "Mudar para tema escuro"}
     >
-      {isDark ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
-      {isDark ? "Tema claro" : "Tema escuro"}
+      {isDark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
     </button>
   );
 }

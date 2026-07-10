@@ -178,7 +178,7 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
             <Badge variant={dataSource.status === "supabase" ? "success" : "warning"}>{dataSource.status}</Badge>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
           <ButtonLink href="/imoveis" variant="secondary">Voltar para imóveis</ButtonLink>
           <ButtonLink href="/imoveis/novo" variant="ghost">Cadastrar outro imóvel</ButtonLink>
           <Button type="button" variant="danger" onClick={handleDeleteProperty} disabled={isDeleting}>

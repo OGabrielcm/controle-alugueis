@@ -6,7 +6,7 @@ const variants = {
   success: "bg-primary-soft text-primary ring-primary/20",
   warning: "bg-warning/10 text-warning ring-warning/20",
   danger: "bg-danger/10 text-danger ring-danger/20",
-  info: "bg-cyan-400/10 text-cyan-50 ring-cyan-300/20",
+  info: "bg-cyan-400/10 text-ink ring-cyan-300/20",
 };
 
 export function Badge({

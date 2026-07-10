@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="min-h-screen bg-canvas text-ink">
         <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,var(--app-glow-primary),transparent_30%),radial-gradient(circle_at_top_right,var(--app-glow-secondary),transparent_32%)]" />
         <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-5 py-5">
-          <div className="flex justify-end">
+          <div className="absolute right-5 top-5 sm:right-24 sm:top-36">
             <ThemeToggle />
           </div>
           <main className="flex-1">{children}</main>
@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-canvas text-ink">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,var(--app-glow-primary),transparent_30%),radial-gradient(circle_at_top_right,var(--app-glow-secondary),transparent_32%)]" />
       <div className="relative mx-auto grid min-h-screen w-full max-w-[1500px] lg:grid-cols-[280px_1fr]">
-        <aside className="border-b border-line bg-surface/90 px-4 py-4 backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+        <aside className="min-w-0 border-b border-line bg-surface/90 px-4 py-4 backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
           <div className="flex items-center justify-between gap-3">
             <Link href={DASHBOARD_HOME} className="flex items-center gap-3 rounded-2xl px-2 py-2">
               <span className="grid size-10 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/15">
@@ -106,7 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <ThemeToggle />
           </div>
 
-          <nav className="mt-5 flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
+          <nav aria-label="Navegação principal" className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 pb-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active =
@@ -130,9 +130,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="mt-6 hidden rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-50 lg:block">
+          <div className="mt-6 hidden rounded-2xl border border-warning/25 bg-warning/10 p-4 text-sm text-ink lg:block">
             <p className="font-semibold">Dados em validação</p>
-            <p className="mt-1 text-xs leading-5 text-amber-100/75">
+            <p className="mt-1 text-xs leading-5 text-ink-muted">
               A base atual vem do CSV de fevereiro/2023 e serve como estrutura/demo, não como verdade operacional.
             </p>
           </div>
@@ -140,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <SessionControl />
         </aside>
 
-        <main className="px-5 py-6 sm:px-8 lg:px-10 lg:py-8">{children}</main>
+        <main className="min-w-0 px-4 py-6 sm:px-8 lg:px-10 lg:py-8">{children}</main>
       </div>
     </div>
   );
