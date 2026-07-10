@@ -235,8 +235,8 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
         </Card>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        <Card>
+      <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Contrato</CardTitle>
             <CardDescription>Base para vencimento, reajuste anual e futuro anexo do contrato.</CardDescription>
@@ -256,7 +256,7 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
 
         <ContractAttachmentPanel propertyId={property.id} initialContractUrl={property.contractUrl} supabaseReady={supabaseReady} />
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Despesas e responsabilidades</CardTitle>
             <CardDescription>Separação inicial entre valores do aluguel e custos do proprietário.</CardDescription>

@@ -76,6 +76,10 @@ Nenhum reset ou descarte foi executado.
 - Tema escuro: validado visualmente.
 - Persistência do tema: confirmada por recarregamento; o toggle continuou oferecendo `Mudar para tema claro` após selecionar escuro.
 
+## Correção após validação mobile de Mercês
+
+A validação em dispositivo real mostrou uma folga lateral nas seções `Contrato`, `Anexo do contrato` e `Despesas e responsabilidades`. A causa foi tratada definindo a coluna-base do grid como `minmax(0, 1fr)`, permitindo que os três cards encolham dentro do viewport e removendo a largura intrínseca do input nativo de arquivo.
+
 ## Limitação e validação humana restante
 
 O browser automatizado disponível nesta execução usou viewport de 1280 px e não havia uma sessão de teste autenticada fornecida. Portanto, dashboard, lista, formulário e detalhe foram auditados por código responsivo e build, mas ainda precisam de uma passagem visual em dispositivo/viewport mobile real com login.

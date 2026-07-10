@@ -171,7 +171,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
   }
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -229,7 +229,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
           <input
             type="file"
             accept={`${CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES.join(",")},.pdf,.docx`}
-            className="mt-3 block max-w-full overflow-hidden text-ellipsis text-sm text-ink-muted file:mb-2 file:block file:max-w-full file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground sm:file:mb-0 sm:file:mr-4 sm:file:inline-block"
+            className="mt-3 block min-w-0 w-full max-w-full overflow-hidden text-ellipsis text-sm text-ink-muted file:mb-2 file:block file:max-w-full file:rounded-full file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground sm:file:mb-0 sm:file:mr-4 sm:file:inline-block"
             disabled={isUploading}
             onChange={(event) => {
               selectFile(event.target.files?.[0] ?? null);
