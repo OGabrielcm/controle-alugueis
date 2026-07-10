@@ -22,7 +22,7 @@ Critério: schema SQL representa os campos da planilha sem perda óbvia.
 Critério: app carrega via uma camada de dados única e não quebra sem credenciais Supabase.
 - [AFK] Criar `property-repository.ts` com leitura Supabase e fallback mock. **Concluído em 2026-06-04.**
 - [AFK] Mostrar no dashboard se a fonte é `mock`, `supabase` ou `fallback`. **Concluído em 2026-06-04.**
-- [HITL] Quando houver projeto Supabase real, validar leitura da tabela `properties` com 2–3 imóveis.
+- [HITL] Validar leitura/escrita real da tabela `properties` com 2–3 imóveis fake-realistas e usuário autenticado.
 
 ## Fase 3 — CRUD básico + navegação multipágina [HITL]
 Critério: usuário consegue criar/editar imóvel manualmente sem concentrar tudo em uma página só.
@@ -32,15 +32,16 @@ Critério: usuário consegue criar/editar imóvel manualmente sem concentrar tud
 - [AFK] Criar edição local de imóvel existente e atualização imediata dos indicadores. **Concluído em 2026-06-04.**
 - [AFK] Persistir rascunhos locais em `localStorage` e permitir descartar alterações não persistidas. **Concluído em 2026-06-04.**
 - [AFK] Acompanhamento: revisar vulnerabilidades moderadas reportadas pelo `npm audit` em dependências transitivas do Next/PostCSS antes de preparar deploy; não usar `npm audit fix --force` se ele sugerir downgrade inseguro do Next.
-- [HITL] Validar visualmente a navegação multipágina e o fluxo com 2 imóveis reais antes de persistir no Supabase.
-- [AFK] Futuro: persistir create/update no Supabase quando autenticação/policies forem definidas.
+- [AFK] Persistir create/update no Supabase com sessão autenticada e `owner_id`. **Concluído em 2026-06-05.**
+- [AFK] Excluir imóvel privado a partir do detalhe. **Concluído em 2026-06-05.**
+- [HITL] Validar visualmente a navegação multipágina e o fluxo com 2 imóveis fake-realistas antes de usar dados reais.
 
 ## Fase 4 — Status e alertas [HITL]
 Critério: app mostra pendências, dados incompletos e pontos de atenção por imóvel.
 - [AFK] Implementar regras iniciais de status e alertas: aluguel pendente, dados incompletos, banco ausente, manutenção alta, imprevistos e caução. **Concluído em 2026-06-04.**
 - [AFK] Criar agenda contratual ativa com vencimentos, reajustes anuais e dados contratuais faltantes. **Concluído em 2026-06-04.**
-- [AFK] Preparar upload de contrato por imóvel via Supabase Storage com PDF/DOCX e área de arrastar/soltar. **Ajustado após revisão manual em 2026-06-05.**
-- [HITL] Timing Supabase: após validar anexos localmente e navegação multipágina, configurar projeto Supabase real, aplicar `schema.sql`/`storage.sql`, testar leitura de 2–3 imóveis e só então ativar escrita/anexos persistidos.
+- [AFK] Preparar upload/remover/abrir contrato por imóvel via Supabase Storage privado com PDF/DOCX e signed URL temporária. **Ajustado após revisão manual em 2026-06-05.**
+- [HITL] Validar anexos com arquivo fake, duas contas e Storage privado antes de usar contratos reais.
 - [HITL] Validar datas reais e regras de cobrança antes de tratar vencimento/contrato como operacional.
 - [AFK] Futuro: transformar a agenda contratual em notificações por e-mail quando houver persistência real e datas atuais.
 
@@ -51,6 +52,12 @@ Critério: usuário envia CSV/XLSX e pré-visualiza os dados antes de importar.
 
 ## Fase 6 — Deploy Vercel + Supabase real [HITL]
 Critério: app acessível por URL Vercel com dados persistidos.
-- [HITL] Conectar Supabase primeiro: projeto, env vars locais, `schema.sql`, `seed.sql`, `storage.sql`, leitura real e policies/RLS mínimas.
+- [HITL] Conectar/validar Supabase primeiro: projeto, env vars locais, `schema.sql`, `seed.sql`, `storage.sql`, leitura/escrita real, duas contas e policies RLS/Storage.
 - [AFK] Depois preparar Vercel: env vars, build, preview deploy e documentação.
 - [HITL] Validar produção antes de usar dados reais/sensíveis.
+
+## Fase 6.5 — MVP readiness familiar [HITL]
+Critério: Mercês e família conseguem operar o fluxo básico com dados fake-realistas antes de produção.
+- [AFK] Criar `app/docs/mvp-readiness-review.md`. **Concluído em 2026-07-10.**
+- [HITL] Rodar checklist familiar: login, cadastro, edição, detalhe, anexo fake, remoção de anexo, exclusão, logout e segunda conta.
+- [HITL] Só usar dados/contratos reais após validar isolamento por conta e Storage privado.

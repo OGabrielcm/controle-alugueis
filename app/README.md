@@ -14,6 +14,8 @@ O objetivo do projeto é evoluir primeiro o fluxo de produto e domínio, com fun
 - Dados mockados disponíveis para desenvolvimento local.
 - Supabase real configurado para leitura demo segura, com fallback/mock se a conexão falhar.
 - Modelo de ownership preparado para MVP privado: `properties.owner_id` + policies RLS por usuário autenticado.
+- Cadastro, edição e exclusão de imóveis já usam sessão Supabase quando há usuário autenticado; sem sessão/configuração, o app mantém fallback local para desenvolvimento.
+- Anexos de contrato usam bucket privado, path interno e signed URL temporária para abertura.
 
 ## Stack
 
@@ -47,7 +49,7 @@ npm run smoke:supabase
 1. Crie um projeto no Supabase.
 2. Rode o SQL em `supabase/schema.sql`.
 3. Rode o SQL em `supabase/seed.sql` se quiser popular a base demo/desatualizada.
-4. Rode o SQL em `supabase/storage.sql` para criar o bucket público `property-contracts` usado pelos documentos de contrato.
+4. Rode o SQL em `supabase/storage.sql` para criar o bucket privado `property-contracts` usado pelos documentos de contrato.
 5. Copie `.env.example` para `.env.local`.
 6. Preencha:
 
@@ -86,8 +88,10 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 - A tela de detalhe do imóvel permite selecionar ou arrastar/soltar PDF/DOCX de contrato para o Supabase Storage.
 - Bucket esperado: `property-contracts`.
 - Limite atual: PDF ou DOCX de até 10MB.
-- Enquanto a escrita real da tabela `properties` não estiver implementada, o link gerado pelo upload fica salvo como rascunho local no navegador.
-- Antes de produção, revisar policies do Storage e trocar bucket público por acesso privado/signed URL se houver dados sensíveis.
+- O upload registra o path privado do arquivo em `properties.contract_url` quando há sessão Supabase ativa.
+- A abertura do contrato gera uma signed URL temporária; não salve links temporários em docs, issues ou logs.
+- A remoção de contrato limpa o vínculo do imóvel e tenta remover o objeto privado do Storage.
+- Antes de usar documentos reais, valide manualmente RLS/Storage com duas contas e arquivos fake.
 
 ## Observações técnicas
 
@@ -104,53 +108,32 @@ Decisão atual:
 - Reavaliar o audit antes de qualquer deploy real.
 - Atualizar Next/PostCSS apenas por caminho seguro, seguido de `npm run lint` e `npm run build`.
 
-## Próximos PRs sugeridos
+## Próximos passos sugeridos
 
-A sequência abaixo prioriza produto e validação de domínio antes de deploy/polimento:
+A sequência abaixo prioriza fechar MVP familiar antes de deploy/polimento:
 
-1. **PR de documentação viva**
-   - Atualizar README com status real, decisões técnicas e roadmap curto.
-   - Registrar alertas conhecidos sem bloquear desenvolvimento.
+1. **MVP Readiness Review**
+   - Consulte `docs/mvp-readiness-review.md`.
+   - Separar o que já está pronto, gaps P0/P1/P2 e checklist familiar.
 
-2. **PR de cadastro de imóvel funcional**
-   - Evoluir `/imoveis/novo` para capturar dados principais do imóvel.
-   - Validar campos com Zod.
-   - Salvar inicialmente no repositório local/mock ou preparar contrato para Supabase.
+2. **Validação Supabase/RLS/Storage com dados fake**
+   - Validar Auth, CRUD real, exclusão, anexos privados, signed URL e isolamento entre duas contas.
+   - Rodar `npm run smoke:supabase` e `npm run audit:multiconta` quando o ambiente local estiver configurado.
 
-3. **PR de listagem de imóveis mais útil**
-   - Melhorar `/imoveis` com cards ou tabela mais clara.
-   - Adicionar estados vazios, totais básicos e links de ação.
-   - Separar melhor visualização de lista e detalhe.
+3. **Dogfood familiar guiado**
+   - Mercês testa com 2–3 imóveis fake-realistas.
+   - Depois mãe/irmão validam se conseguem entender cadastro, lista, detalhe, anexo, pendências e logout.
 
-4. **PR de detalhe do imóvel e contratos**
-   - Criar rota de detalhe por imóvel.
-   - Mostrar dados principais, aluguel, status e histórico básico.
-   - Preparar espaço para contratos, pagamentos, anexos e observações.
+4. **Importação da planilha**
+   - Evoluir `/importar` para mapear colunas, validar dados e exibir prévia antes de salvar.
 
-5. **PR de agenda contratual**
-   - Registrar data de início, vencimento e regra de reajuste anual do contrato.
-   - Identificar contratos próximos do vencimento.
-   - Identificar quando o aluguel deve aumentar por cláusula anual de reajuste.
-
-6. **PR de importação da planilha**
-   - Evoluir `/importar` para mapear colunas e validar dados.
-   - Transformar dados importados no formato interno do app.
-   - Exibir prévia antes de salvar.
-
-7. **PR de integração real com Supabase**
-   - Validar visualmente o Supabase Auth em `/login`, `/cadastro`, `/recuperar-senha`, `/redefinir-senha`, `/dashboard` e botão `Sair`.
-   - Validar visualmente cadastro e edição reais com usuário logado, confirmando que as linhas entram com `owner_id = auth.uid()`.
-   - Armazenar anexos de contrato de forma vinculada ao imóvel.
-   - Manter fallback/mock se fizer sentido para desenvolvimento.
-   - Validar schema, variáveis de ambiente e fluxo completo.
-
-8. **PR de preparação para deploy**
+5. **Preparação para deploy**
    - Reavaliar `npm audit`.
    - Rodar lint/build.
    - Revisar variáveis de ambiente.
    - Só então preparar Vercel.
 
-9. **PR futuro de avisos automáticos**
+6. **Futuro: avisos automáticos**
    - Planejar envio de e-mails antes do vencimento do contrato.
    - Planejar envio de e-mails antes da data de reajuste anual.
    - Definir frequência, destinatários e templates dos lembretes.

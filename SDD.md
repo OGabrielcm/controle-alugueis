@@ -5,10 +5,15 @@
 ```text
 app/
 ├── src/app/layout.tsx            # app shell com navegação multipágina
-├── src/app/page.tsx              # resumo operacional da carteira
+├── src/app/page.tsx              # redireciona para /login
+├── src/app/dashboard/page.tsx    # resumo operacional da carteira protegido por sessão
 ├── src/app/imoveis/page.tsx      # listagem/filtros/edição local
 ├── src/app/imoveis/novo/page.tsx # cadastro local separado
 ├── src/app/importar/page.tsx     # placeholder para importação CSV/XLSX
+├── src/app/login/page.tsx        # login Supabase Auth
+├── src/app/cadastro/page.tsx     # cadastro com confirmação de e-mail/senha
+├── src/app/recuperar-senha/page.tsx # solicitação de recuperação de senha
+├── src/app/redefinir-senha/page.tsx # redefinição de senha
 ├── src/app/globals.css           # tema visual
 ├── src/components/app-shell.tsx  # navegação lateral/topo responsiva
 ├── src/components/contract-attachment-panel.tsx # upload de PDF/DOCX por imóvel
@@ -99,10 +104,11 @@ Define o bucket `property-contracts`, valida arquivos de contrato e gera paths s
 - PDF e DOCX são aceitos.
 - Limite: 10MB.
 - Path: `<property-id-normalizado>/<timestamp>-<nome-normalizado>.<pdf|docx>`.
-- `uploadContractAttachment()` envia para o Supabase Storage e retorna URL pública do arquivo.
+- `uploadContractAttachment()` envia para o Supabase Storage privado e retorna o path interno do arquivo.
+- `createContractSignedUrl()` gera signed URL temporária para abertura do contrato.
 
 ### `ContractAttachmentPanel`
-Componente client-side usado na página de detalhe do imóvel. Permite selecionar ou arrastar/soltar PDF/DOCX, validar localmente e enviar ao Storage quando Supabase está configurado. Como a escrita real de `properties.contract_url` ainda não existe, o link do upload é salvo como rascunho local no navegador por `propertyId`.
+Componente client-side usado na página de detalhe do imóvel. Permite selecionar ou arrastar/soltar PDF/DOCX, validar localmente, enviar ao Storage privado quando Supabase está configurado, registrar o path em `properties.contract_url`, abrir por signed URL temporária e remover o vínculo/anexo quando autorizado.
 
 ### `AppShell`
 Componente client-side em `src/components/app-shell.tsx` responsável pela navegação multipágina. Define as rotas principais: `/`, `/imoveis`, `/imoveis/novo` e `/importar`.
@@ -116,14 +122,14 @@ Componente client-side em `src/components/property-workspace.tsx` responsável p
 - `list`: filtros, tabela e edição local.
 - `new`: cadastro local de imóvel.
 
-### CRUD local de imóveis
-A fase atual permite criar e editar imóveis no estado client-side do workspace, sem persistir no Supabase.
+### CRUD de imóveis
+A fase atual permite criar e editar imóveis no Supabase quando há sessão autenticada; sem sessão/configuração, mantém fallback local client-side para desenvolvimento.
 - Campos editáveis nesta fatia: imóvel, inquilino, vencimento, aluguel, banco, alugado e aluguel pago.
-- Novos imóveis recebem `id` local com prefixo `local-`.
+- Novos imóveis autenticados recebem `id` do banco; rascunhos locais continuam usando `id` local com prefixo `local-`.
 - Campos financeiros aceitam vírgula ou ponto e precisam ser maiores ou iguais a zero.
 - Alterações atualizam cards, filtros, prioridades e tabela imediatamente.
-- Rascunhos locais são salvos no `localStorage` do navegador para preservar mudanças entre as páginas.
-- A UI exibe `rascunho local` quando há alteração não persistida e permite descartar rascunhos voltando para os dados carregados pelo repository.
+- Rascunhos locais são salvos no `localStorage` apenas quando não há sessão Supabase ativa.
+- A UI exibe `rascunho local` quando há alteração não persistida no modo fallback e permite descartar rascunhos voltando para os dados carregados pelo repository.
 - Campos fora do formulário preservam o valor atual ao editar e usam defaults seguros ao criar.
 
 ### `getProperties()`
@@ -147,15 +153,15 @@ Tabela principal: `properties`.
 - O app funciona com dados mockados se as variáveis Supabase não estiverem configuradas.
 - Quando configurado, `getProperties()` lê `public.properties` em tempo de execução e mantém a UI usando o mesmo contrato `PropertyRecord`.
 - Erros de conexão, tabela vazia ou dados inválidos não quebram o dashboard: o app cai para mock local e mostra `fallback` na fonte de dados.
-- A escrita/edição no banco ainda está fora desta etapa; o CRUD atual é rascunho local client-side para validar UX antes de persistir.
+- A escrita/edição autenticada no banco está implementada via cliente Supabase browser-side, preenchendo `owner_id = auth.uid()` e respeitando as policies de usuário autenticado.
 - Campos do banco ficam em snake_case; campos do domínio ficam em camelCase.
 - `supabase/seed.sql` replica os 11 imóveis do CSV de fevereiro/2023 para ambiente demo/desenvolvimento.
-- `supabase/storage.sql` cria o bucket público `property-contracts` para documentos PDF/DOCX de contrato com limite de 10MB.
+- `supabase/storage.sql` cria o bucket privado `property-contracts` para documentos PDF/DOCX de contrato com limite de 10MB e policies baseadas no dono do imóvel.
 - O seed remove antes apenas registros com `source_label = 'Aluguéis Prédios - Fevereiro.csv'` e `source_reference_month = 'Fevereiro/2023'`, evitando duplicidade sem apagar outros dados.
 - Registros do seed entram com `source_is_outdated = true`; não usar como verdade operacional atual sem revisão manual.
-- Antes de produção, revisar RLS/policies do Storage; contratos reais podem conter dados sensíveis e provavelmente devem migrar para signed URLs privadas.
+- Antes de produção/uso com documentos reais, validar RLS e Storage com duas contas e arquivos fake; contratos são abertos por signed URLs temporárias.
 
 ## Escopo negativo
-- Não implementar autenticação nesta primeira fatia.
-- Não gravar alterações no banco ainda.
+- Não abrir escrita para `anon`.
+- Não usar documentos reais antes de validar Storage privado e isolamento por conta.
 - Não importar XLSX ainda.
