@@ -1,5 +1,17 @@
 # Decisões do projeto
 
+## 2026-07-10 -- MVP readiness antes de deploy
+
+O que mudou: foi adicionado `docs/mvp-readiness-review.md` e os docs foram alinhados com o estado atual do MVP: Auth Supabase, CRUD autenticado, exclusão de imóvel, Storage privado para contratos e signed URLs temporárias.
+
+Por que: o projeto está próximo de MVP técnico, mas ainda precisa de validação familiar e auditoria manual de Auth/RLS/Storage antes de usar dados ou contratos reais.
+
+Alternativa descartada: pular direto para deploy/PR final só porque `lint`, testes e build passam. Build verde não prova isolamento por conta nem usabilidade familiar.
+
+Impacto: o próximo passo recomendado é validar com dados fake-realistas, duas contas e arquivo de contrato fake antes de qualquer produção, contrato real ou deploy público.
+
+Como reverter: remover o relatório de readiness e voltar os docs para o roadmap anterior, mantendo o código da aplicação sem alteração.
+
 ## 2026-06-05 -- Cadastro com nome e confirmações explícitas
 
 O que mudou: `/cadastro` agora coleta nome, e-mail, confirmação de e-mail, senha e confirmação de senha antes de chamar Supabase Auth.
