@@ -6,9 +6,12 @@ import { ContractAttachmentPanel } from "@/components/contract-attachment-panel"
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { getAuthenticatedUser } from "@/lib/auth-session";
 import { formatMonthlyDueDay } from "@/lib/monthly-due-date";
 import { findPropertyById } from "@/lib/property-detail";
 import { mapSupabaseRow, propertyColumns, type PropertyDataSource, type SupabasePropertyRow } from "@/lib/property-repository";
+import { deletePropertyAndAttachments } from "@/lib/property-deletion";
 import {
   formatCurrency,
   formatDate,
@@ -40,27 +43,48 @@ type PropertyDetailClientProps = {
 
 export function PropertyDetailClient({ routeId, fallbackProperties, fallbackDataSource, supabaseReady }: PropertyDetailClientProps) {
   const router = useRouter();
-  const initialProperty = findPropertyById(fallbackProperties, routeId);
+  const initialProperty = supabaseReady ? undefined : findPropertyById(fallbackProperties, routeId);
   const [property, setProperty] = useState<PropertyRecord | undefined>(initialProperty);
   const [dataSource, setDataSource] = useState<PropertyDataSource>(fallbackDataSource);
-  const [statusMessage, setStatusMessage] = useState(initialProperty ? null : "Validando sessão antes de decidir se o imóvel existe...");
+  const [statusMessage, setStatusMessage] = useState(initialProperty ? null : "Carregando imóvel privado...");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isLoading, setIsLoading] = useState(supabaseReady);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [loadedRouteId, setLoadedRouteId] = useState<string | null>(supabaseReady ? null : routeId);
 
   useEffect(() => {
     let mounted = true;
 
     async function loadPrivateProperty() {
       if (!supabase) {
+        setProperty(findPropertyById(fallbackProperties, routeId));
+        setLoadedRouteId(routeId);
+        setErrorMessage(null);
         setStatusMessage(null);
+        setIsLoading(false);
         return;
       }
 
-      const { data: userData } = await supabase.auth.getUser();
+      const { user, error: authError } = await getAuthenticatedUser(supabase.auth);
       if (!mounted) return;
 
-      if (!userData.user) {
+      if (authError) {
+        setProperty(undefined);
+        setLoadedRouteId(routeId);
+        setErrorMessage(`Não consegui validar sua sessão privada (${authError}).`);
         setStatusMessage(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!user) {
+        setProperty(undefined);
+        setLoadedRouteId(routeId);
+        setErrorMessage(null);
+        setStatusMessage(null);
+        setIsLoading(false);
         return;
       }
 
@@ -74,8 +98,11 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
       if (!mounted) return;
 
       if (error) {
+        setProperty(undefined);
+        setLoadedRouteId(routeId);
         setErrorMessage(`Não consegui carregar o imóvel privado (${error.message}).`);
         setStatusMessage(null);
+        setIsLoading(false);
         return;
       }
 
@@ -87,9 +114,14 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
           status: "supabase",
           note: "Detalhe carregado no navegador com sessão Supabase para respeitar RLS/owner_id.",
         });
+      } else {
+        setProperty(undefined);
       }
 
+      setLoadedRouteId(routeId);
+      setErrorMessage(null);
       setStatusMessage(null);
+      setIsLoading(false);
     }
 
     loadPrivateProperty();
@@ -97,17 +129,15 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
     return () => {
       mounted = false;
     };
-  }, [routeId]);
+  }, [fallbackProperties, routeId, loadAttempt]);
 
 
   async function handleDeleteProperty() {
     if (!property) return;
 
-    const confirmed = window.confirm(`Excluir o imóvel "${property.buildingName}"? Essa ação remove o cadastro da sua conta e não pode ser desfeita.`);
-    if (!confirmed) return;
-
     if (!supabaseReady || !supabase) {
       setErrorMessage("Entre com o usuário correto para excluir imóveis privados.");
+      setConfirmDelete(false);
       return;
     }
 
@@ -115,41 +145,63 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
     setErrorMessage(null);
     setStatusMessage("Excluindo imóvel...");
 
-    const { error } = await supabase.from("properties").delete().eq("id", property.id);
-
-    if (error) {
+    try {
+      await deletePropertyAndAttachments({ property, supabaseClient: supabase });
+    } catch (error) {
       setIsDeleting(false);
+      setConfirmDelete(false);
       setStatusMessage(null);
-      setErrorMessage(`Não foi possível excluir o imóvel (${error.message}).`);
+      setErrorMessage(
+        error instanceof Error
+          ? `Não foi possível excluir o imóvel (${error.message}).`
+          : "Não foi possível excluir o imóvel.",
+      );
       return;
     }
 
     router.push("/imoveis");
   }
 
-  if (!property) {
-    const requestFailed = Boolean(errorMessage);
+  if (loadedRouteId !== routeId || !property) {
+    const routeIsLoading = isLoading || loadedRouteId !== routeId;
+    const requestFailed = loadedRouteId === routeId && Boolean(errorMessage);
+    const visibleStatus = loadedRouteId === routeId ? statusMessage : "Carregando imóvel privado...";
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{requestFailed ? "Não foi possível carregar este imóvel" : "Imóvel não encontrado nesta sessão"}</CardTitle>
+          <CardTitle>{routeIsLoading ? "Carregando imóvel" : requestFailed ? "Não foi possível carregar este imóvel" : "Imóvel não encontrado nesta sessão"}</CardTitle>
           <CardDescription>
-            {requestFailed
+            {routeIsLoading
+              ? "Aguardando a autenticação antes de consultar os dados privados."
+              : requestFailed
               ? "Não alteramos nenhum dado. Tente novamente ou entre de novo para atualizar sua sessão privada."
-              : "A página aguardou a autenticação antes de retornar erro, para evitar 404 em imóveis privados recém-criados."}
+              : "A autenticação e a consulta terminaram sem encontrar este imóvel para a conta atual."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-slate-300">
-          {statusMessage ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-cyan-50">{statusMessage}</p> : null}
-          {errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-red-100" role="alert">{errorMessage}</p> : null}
-          {!statusMessage && !errorMessage ? (
+          {visibleStatus ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-cyan-50">{visibleStatus}</p> : null}
+          {requestFailed && errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-red-100" role="alert">{errorMessage}</p> : null}
+          {!routeIsLoading && !visibleStatus && !requestFailed ? (
             <p className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-              Se o imóvel pertence a outra conta, entre com o usuário correto. Se acabou de criar, volte para a lista de imóveis e tente abrir novamente.
+              Se o imóvel pertence a outra conta, entre com o usuário correto. Caso contrário, volte para a lista e confirme se o cadastro ainda existe.
             </p>
           ) : null}
           <div className="flex flex-wrap gap-3">
+            {requestFailed ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  setIsLoading(true);
+                  setErrorMessage(null);
+                  setStatusMessage("Tentando carregar o imóvel novamente...");
+                  setLoadAttempt((attempt) => attempt + 1);
+                }}
+              >
+                Tentar novamente
+              </Button>
+            ) : null}
             <ButtonLink href="/imoveis">Voltar para imóveis</ButtonLink>
-            <ButtonLink href="/login" variant="secondary">Entrar novamente</ButtonLink>
+            {!routeIsLoading ? <ButtonLink href="/login" variant="secondary">Entrar novamente</ButtonLink> : null}
           </div>
         </CardContent>
       </Card>
@@ -181,11 +233,21 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
         <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
           <ButtonLink href="/imoveis" variant="secondary">Voltar para imóveis</ButtonLink>
           <ButtonLink href="/imoveis/novo" variant="ghost">Cadastrar outro imóvel</ButtonLink>
-          <Button type="button" variant="danger" onClick={handleDeleteProperty} disabled={isDeleting}>
+          <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)} disabled={isDeleting}>
             {isDeleting ? "Excluindo..." : "Excluir imóvel"}
           </Button>
         </div>
       </header>
+
+      <ConfirmationDialog
+        open={confirmDelete}
+        title={`Excluir ${property.buildingName}?`}
+        description="O cadastro e os anexos privados deste imóvel serão removidos. Esta ação não pode ser desfeita."
+        confirmLabel="Excluir imóvel"
+        busy={isDeleting}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={handleDeleteProperty}
+      />
 
       {statusMessage ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">{statusMessage}</p> : null}
       {errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">{errorMessage}</p> : null}
@@ -254,7 +316,12 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
           </CardContent>
         </Card>
 
-        <ContractAttachmentPanel propertyId={property.id} initialContractUrl={property.contractUrl} supabaseReady={supabaseReady} />
+        <ContractAttachmentPanel
+          propertyId={property.id}
+          initialContractUrl={property.contractUrl}
+          supabaseReady={supabaseReady}
+          onContractChange={(contractUrl) => setProperty((current) => current ? { ...current, contractUrl } : current)}
+        />
 
         <Card className="min-w-0">
           <CardHeader>

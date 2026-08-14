@@ -61,7 +61,25 @@ export async function createContractSignedUrl({
     throw new Error(error.message);
   }
 
+  const validationError = getSignedUrlValidationError(data?.signedUrl);
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
   return data.signedUrl;
+}
+
+export function getSignedUrlValidationError(value?: string | null) {
+  if (!value) {
+    return "O Storage não retornou um link válido para o contrato.";
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? undefined : "O Storage retornou um link inválido para o contrato.";
+  } catch {
+    return "O Storage retornou um link inválido para o contrato.";
+  }
 }
 
 function slugify(value: string) {

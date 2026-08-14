@@ -44,7 +44,6 @@ Critério: app mostra pendências, dados incompletos e pontos de atenção por i
 - [HITL] Validar anexos com arquivo fake, duas contas e Storage privado antes de usar contratos reais.
 - [HITL] Validar datas reais e regras de cobrança antes de tratar vencimento/contrato como operacional.
 - [AFK] Futuro: transformar a agenda contratual em notificações por e-mail quando houver persistência real e datas atuais.
-- [AFK] Futuro: adicionar uma galeria privada por imóvel, com múltiplas imagens, miniaturas, upload no Storage privado e RLS por `owner_id`; não implementar junto do MVP atual nem usar URLs públicas.
 
 ## Fase 5 — Importação de planilha [HITL]
 Critério: usuário envia CSV/XLSX e pré-visualiza os dados antes de importar.
@@ -60,5 +59,14 @@ Critério: app acessível por URL Vercel com dados persistidos.
 ## Fase 6.5 — MVP readiness familiar [HITL]
 Critério: Mercês e família conseguem operar o fluxo básico com dados fake-realistas antes de produção.
 - [AFK] Criar `app/docs/mvp-readiness-review.md`. **Concluído em 2026-07-10.**
+- [AFK] Configurar Playwright e cobrir as entradas públicas de Auth. **Concluído em 2026-08-14 com 4 cenários no Chromium.**
+- [HITL] Criar conta descartável e automatizar a jornada autenticada: login, cadastro de imóvel, edição, detalhe e exclusão.
 - [HITL] Rodar checklist familiar: login, cadastro, edição, detalhe, anexo fake, remoção de anexo, exclusão, logout e segunda conta.
 - [HITL] Só usar dados/contratos reais após validar isolamento por conta e Storage privado.
+
+## Fase 7 — Evoluções pós-MVP [HITL]
+Condição de entrada: MVP familiar validado com Auth, CRUD, RLS, Storage privado, dados fake-realistas e dogfood guiado; não antecipar estas funcionalidades para destravar o lançamento inicial.
+- [AFK] Criar modelos padrão de documentos/contratos com variáveis de imóvel, locador, inquilino e condições contratuais.
+- [HITL] Definir quais modelos serão usados, conferir as variáveis preenchidas e manter revisão manual antes de qualquer uso ou assinatura.
+- [AFK] Adicionar galeria privada por imóvel, com múltiplas imagens, miniaturas e upload no Storage privado com RLS por `owner_id`.
+- [HITL] Validar que fotos não usam URLs públicas e que outra conta não acessa imagens de imóveis alheios.

@@ -1,6 +1,11 @@
-import type { PropertyDraft } from "./property-draft";
-import { propertyFromDraft } from "./property-draft";
+import {
+  getPropertyDraftValidationError,
+  hasExpiredActiveContract,
+  propertyFromDraft,
+  type PropertyDraft,
+} from "./property-draft";
 import type { PropertyRecord } from "./rentals";
+import { getLocalDateString } from "./date-only";
 
 export type PropertyMutationMode = "create" | "edit";
 
@@ -46,6 +51,8 @@ type BuildPayloadOptions = {
   mode: PropertyMutationMode;
   current?: PropertyRecord;
   removeContract?: boolean;
+  confirmExpiredContract?: boolean;
+  referenceDate?: string;
 };
 
 function nullable(value: string | undefined) {
@@ -58,8 +65,17 @@ function nullableNumber(value: number | undefined) {
 
 export function buildPropertyMutationPayload(
   draft: PropertyDraft,
-  { userId, current, removeContract }: BuildPayloadOptions,
+  { userId, current, removeContract, confirmExpiredContract, referenceDate = getLocalDateString() }: BuildPayloadOptions,
 ): SupabasePropertyMutationPayload {
+  const validationError = getPropertyDraftValidationError(draft);
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
+  if (hasExpiredActiveContract(draft, referenceDate) && !confirmExpiredContract) {
+    throw new Error("Confirme o contrato vencido antes de persistir o imóvel como alugado.");
+  }
+
   const property = propertyFromDraft(draft, current);
 
   return {

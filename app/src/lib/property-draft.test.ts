@@ -1,6 +1,12 @@
 import { describe, it } from "node:test";
 import * as assert from "node:assert/strict";
-import { emptyPropertyDraft, propertyFromDraft } from "./property-draft";
+import {
+  PROPERTY_TEXT_LIMITS,
+  emptyPropertyDraft,
+  getPropertyDraftValidationError,
+  hasExpiredActiveContract,
+  propertyFromDraft,
+} from "./property-draft";
 
 const baseDraft = {
   ...emptyPropertyDraft,
@@ -89,5 +95,69 @@ describe("propertyFromDraft", () => {
     assert.equal(property.rentAdjustmentBaseDate, undefined);
     assert.equal(property.rentAdjustmentIndex, undefined);
     assert.equal(property.contractNotes, undefined);
+  });
+});
+
+describe("getPropertyDraftValidationError", () => {
+  it("rejeita vencimento anterior ao início do contrato", () => {
+    assert.equal(
+      getPropertyDraftValidationError({
+        ...baseDraft,
+        contractStartDate: "2030-01-01",
+        contractEndDate: "2020-01-01",
+      }),
+      "O vencimento do contrato não pode ser anterior ao início.",
+    );
+  });
+
+  it("aceita datas no mesmo dia ou em ordem crescente", () => {
+    assert.equal(
+      getPropertyDraftValidationError({
+        ...baseDraft,
+        contractStartDate: "2026-01-15",
+        contractEndDate: "2026-01-15",
+      }),
+      undefined,
+    );
+    assert.equal(getPropertyDraftValidationError(baseDraft), undefined);
+  });
+
+  it("rejeita texto acima do limite definido para observações", () => {
+    assert.equal(
+      getPropertyDraftValidationError({
+        ...baseDraft,
+        contractNotes: "a".repeat(PROPERTY_TEXT_LIMITS.contractNotes + 1),
+      }),
+      `O campo observações contratuais deve ter no máximo ${PROPERTY_TEXT_LIMITS.contractNotes} caracteres.`,
+    );
+  });
+});
+
+describe("hasExpiredActiveContract", () => {
+  it("exige confirmação quando imóvel alugado tem contrato encerrado", () => {
+    assert.equal(
+      hasExpiredActiveContract(
+        { ...baseDraft, contractEndDate: "2026-06-01", isRented: true },
+        "2026-07-13",
+      ),
+      true,
+    );
+  });
+
+  it("não exige confirmação para imóvel desalugado ou contrato vigente", () => {
+    assert.equal(
+      hasExpiredActiveContract(
+        { ...baseDraft, contractEndDate: "2026-06-01", isRented: false },
+        "2026-07-13",
+      ),
+      false,
+    );
+    assert.equal(
+      hasExpiredActiveContract(
+        { ...baseDraft, contractEndDate: "2027-06-01", isRented: true },
+        "2026-07-13",
+      ),
+      false,
+    );
   });
 });

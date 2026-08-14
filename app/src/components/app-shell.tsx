@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { Building2, FileSpreadsheet, Home, Plus, TableProperties } from "lucide-react";
 import { SessionControl } from "@/components/session-control";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { getAuthenticatedUser } from "@/lib/auth-session";
 import { DASHBOARD_HOME, LOGIN_PATH, isAuthRoute, isOperationalRoute } from "@/lib/session-routes";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -21,7 +23,9 @@ const navItems = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [verifiedPathname, setVerifiedPathname] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<"checking" | "authenticated" | "error">("checking");
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [sessionCheckAttempt, setSessionCheckAttempt] = useState(0);
   const authRoute = isAuthRoute(pathname);
   const operationalRoute = isOperationalRoute(pathname);
 
@@ -37,31 +41,42 @@ export function AppShell({ children }: { children: ReactNode }) {
 
     let mounted = true;
 
-    supabase.auth.getUser().then(({ data }) => {
+    getAuthenticatedUser(supabase.auth).then(({ user, error }) => {
       if (!mounted) return;
 
-      if (!data.user) {
+      if (error) {
+        setSessionStatus("error");
+        setSessionError(error);
+        return;
+      }
+
+      if (!user) {
         router.replace(LOGIN_PATH);
         return;
       }
 
-      setVerifiedPathname(pathname);
+      setSessionStatus("authenticated");
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session?.user) {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        setSessionError(null);
+        setSessionStatus("checking");
         router.replace(LOGIN_PATH);
         return;
       }
 
-      setVerifiedPathname(pathname);
+      if (session?.user) {
+        setSessionError(null);
+        setSessionStatus("authenticated");
+      }
     });
 
     return () => {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [authRoute, operationalRoute, pathname, router]);
+  }, [authRoute, operationalRoute, router, sessionCheckAttempt]);
 
   if (authRoute) {
     return (
@@ -77,12 +92,37 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  if (operationalRoute && verifiedPathname !== pathname) {
+  if (operationalRoute && sessionStatus === "checking") {
     return (
       <div className="grid min-h-screen place-items-center bg-canvas px-5 text-center text-ink">
         <div>
           <p className="text-sm font-medium text-emerald-300">Validando sessão</p>
           <p className="mt-2 text-sm text-slate-400">Se não houver login ativo, você volta para a entrada privada.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (operationalRoute && sessionStatus === "error") {
+    return (
+      <div className="grid min-h-screen place-items-center bg-canvas px-5 text-center text-ink">
+        <div className="max-w-md rounded-3xl border border-danger/25 bg-surface p-6 shadow-lg">
+          <p className="font-semibold text-danger">Não foi possível validar sua sessão</p>
+          <p className="mt-2 text-sm leading-6 text-ink-muted">
+            A conexão com o Supabase falhou. Seus dados não foram tratados como ausentes.
+          </p>
+          {sessionError ? <p className="mt-3 text-xs text-ink-muted" role="alert">{sessionError}</p> : null}
+          <Button
+            className="mt-5"
+            type="button"
+            onClick={() => {
+              setSessionStatus("checking");
+              setSessionError(null);
+              setSessionCheckAttempt((attempt) => attempt + 1);
+            }}
+          >
+            Tentar novamente
+          </Button>
         </div>
       </div>
     );

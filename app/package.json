@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test src/**/*.test.ts",
+    "test:e2e": "playwright test",
     "smoke:supabase": "node scripts/smoke-supabase.mjs",
     "audit:multiconta": "node scripts/audit-multiconta-security.mjs"
   },
@@ -22,6 +23,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

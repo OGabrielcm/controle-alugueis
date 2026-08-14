@@ -7,8 +7,10 @@ import { FileText, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getAuthenticatedUser } from "@/lib/auth-session";
 import {
   type PortfolioFilter,
   type PropertyRecord,
@@ -25,17 +27,23 @@ import {
 import { type ContractAgenda, buildContractAgenda, getTodayDateString } from "@/lib/contract-agenda";
 import {
   CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES,
+  CONTRACT_ATTACHMENTS_BUCKET,
   getContractFileValidationError,
+  normalizeContractStoragePath,
   uploadContractAttachment,
 } from "@/lib/contract-attachment";
 import { buildMonthlyDueDate, formatMonthlyDueDay, getMonthlyDueDay } from "@/lib/monthly-due-date";
 import {
+  PROPERTY_TEXT_LIMITS,
   type PropertyDraft,
   draftFromProperty,
   emptyPropertyDraft,
+  getPropertyDraftValidationError,
+  hasExpiredActiveContract,
   propertyFromDraft,
 } from "@/lib/property-draft";
 import { buildPropertyMutationPayload } from "@/lib/property-persistence";
+import { deletePropertyAndAttachments } from "@/lib/property-deletion";
 import { shouldRedirectAfterPropertySave } from "@/lib/property-save-flow";
 import { mapSupabaseRow, propertyColumns, type PropertyDataSource, type SupabasePropertyRow } from "@/lib/property-repository";
 import { supabase } from "@/lib/supabase";
@@ -43,7 +51,7 @@ import { supabase } from "@/lib/supabase";
 const STORAGE_KEY = "controle-alugueis.local-properties.v1";
 
 type WorkspaceMode = "overview" | "list" | "new";
-type ContractSaveOptions = { removeExistingContract?: boolean };
+type ContractSaveOptions = { removeExistingContract?: boolean; confirmExpiredContract?: boolean };
 
 type PropertyWorkspaceProps = {
   mode: WorkspaceMode;
@@ -98,18 +106,32 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [propertyPendingDeletion, setPropertyPendingDeletion] = useState<PropertyRecord | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
     async function hydrateProperties() {
       if (supabase) {
-        const { data: userData } = await supabase.auth.getUser();
+        const { user, error: authError } = await getAuthenticatedUser(supabase.auth);
 
         if (!mounted) return;
 
-        if (userData.user) {
-          setSessionUserId(userData.user.id);
+        if (authError) {
+          setFormError(`Não consegui validar sua sessão privada (${authError}). Tente novamente recarregando a página.`);
+          setManagedProperties([]);
+          setCurrentDataSource({
+            label: "Supabase: erro ao validar sessão",
+            referenceMonth: "Dados privados não consultados",
+            status: "fallback",
+            note: "Não tratei falha de autenticação como carteira vazia e não mostrei dados demo/mockados.",
+          });
+          setHydrated(true);
+          return;
+        }
+
+        if (user) {
+          setSessionUserId(user.id);
           const { data, error } = await supabase
             .from("properties")
             .select(propertyColumns)
@@ -161,7 +183,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
   }, [hydrated, managedProperties, sessionUserId]);
 
   const summary = useMemo(() => summarizePortfolio(managedProperties), [managedProperties]);
-  const agendaReferenceDate = useMemo(() => getTodayDateString(), []);
+  const agendaReferenceDate = getTodayDateString();
   const contractAgenda = useMemo(
     () => buildContractAgenda(managedProperties, agendaReferenceDate),
     [managedProperties, agendaReferenceDate],
@@ -185,16 +207,15 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
   }
 
   async function saveDraft(draft: PropertyDraft, mode: "create" | "edit", contractFile?: File | null, options: ContractSaveOptions = {}) {
-    const buildingName = draft.buildingName.trim();
-    const rentAmount = Number(draft.rentAmount.replace(",", "."));
-
-    if (!buildingName) {
-      setFormError("Informe o nome do imóvel.");
+    const saveReferenceDate = getTodayDateString();
+    const validationError = getPropertyDraftValidationError(draft);
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
 
-    if (!Number.isFinite(rentAmount) || rentAmount < 0) {
-      setFormError("Informe um aluguel válido maior ou igual a zero.");
+    if (hasExpiredActiveContract(draft, saveReferenceDate) && !options.confirmExpiredContract) {
+      setFormError("Confirme que deseja salvar este imóvel como alugado com um contrato já vencido.");
       return;
     }
 
@@ -211,7 +232,14 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       }
 
       const current = draft.id ? managedProperties.find((property) => property.id === draft.id) : undefined;
-      const payload = buildPropertyMutationPayload(draft, { userId: sessionUserId, mode, current, removeContract: options.removeExistingContract && !contractFile });
+      const payload = buildPropertyMutationPayload(draft, {
+        userId: sessionUserId,
+        mode,
+        current,
+        removeContract: options.removeExistingContract && !contractFile,
+        confirmExpiredContract: options.confirmExpiredContract,
+        referenceDate: saveReferenceDate,
+      });
       const request = mode === "create"
         ? supabase.from("properties").insert(payload).select(propertyColumns).single()
         : supabase.from("properties").update(payload).eq("id", draft.id ?? "").select(propertyColumns).single();
@@ -224,6 +252,8 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       }
 
       let saved = mapSupabaseRow(data as unknown as SupabasePropertyRow);
+      let storageCleanupWarning: string | null = null;
+      const previousContractPath = normalizeContractStoragePath(current?.contractUrl);
 
       if (contractFile) {
         try {
@@ -236,10 +266,20 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
             .single();
 
           if (updateError) {
+            await supabase.storage.from(CONTRACT_ATTACHMENTS_BUCKET).remove([uploadResult.path]);
             throw new Error(updateError.message);
           }
 
           saved = mapSupabaseRow(updatedData as unknown as SupabasePropertyRow);
+
+          if (previousContractPath && previousContractPath !== uploadResult.path) {
+            const { error: cleanupError } = await supabase.storage
+              .from(CONTRACT_ATTACHMENTS_BUCKET)
+              .remove([previousContractPath]);
+            if (cleanupError) {
+              storageCleanupWarning = `Imóvel e novo contrato salvos, mas o arquivo anterior não pôde ser limpo do Storage (${cleanupError.message}).`;
+            }
+          }
         } catch (uploadError) {
           setIsSaving(false);
           setManagedProperties((currentProperties) => {
@@ -257,6 +297,13 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           setFormMessage("Você pode tentar anexar novamente na edição ou no detalhe do imóvel.");
           return;
         }
+      } else if (options.removeExistingContract && previousContractPath) {
+        const { error: cleanupError } = await supabase.storage
+          .from(CONTRACT_ATTACHMENTS_BUCKET)
+          .remove([previousContractPath]);
+        if (cleanupError) {
+          storageCleanupWarning = `Edição salva e vínculo removido, mas o arquivo não pôde ser limpo do Storage (${cleanupError.message}).`;
+        }
       }
 
       setIsSaving(false);
@@ -271,13 +318,13 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       setNewDraft(emptyPropertyDraft);
       setFormError(null);
       setFormMessage(
-        contractFile
+        storageCleanupWarning ?? (contractFile
           ? "Imóvel e contrato salvos no Supabase."
           : options.removeExistingContract
             ? "Edição salva e contrato removido do imóvel."
             : mode === "create"
             ? "Imóvel salvo no Supabase com seu usuário como dono."
-            : "Edição salva no Supabase.",
+            : "Edição salva no Supabase."),
       );
       if (shouldRedirectAfterPropertySave(mode, { savedToSupabase: true })) {
         router.push("/imoveis");
@@ -303,31 +350,35 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
   }
 
   async function deleteProperty(property: PropertyRecord) {
-    const confirmed = window.confirm(`Excluir o imóvel "${property.buildingName}"? Essa ação remove o cadastro da sua conta e não pode ser desfeita.`);
-    if (!confirmed) return;
-
     if (supabase && sessionUserId) {
       setIsSaving(true);
       setFormError(null);
       setFormMessage(null);
 
-      const { error } = await supabase.from("properties").delete().eq("id", property.id);
-
-      setIsSaving(false);
-
-      if (error) {
-        setFormError(`Não foi possível excluir o imóvel (${error.message}).`);
+      try {
+        await deletePropertyAndAttachments({ property, supabaseClient: supabase });
+      } catch (error) {
+        setIsSaving(false);
+        setPropertyPendingDeletion(null);
+        setFormError(
+          error instanceof Error
+            ? `Não foi possível excluir o imóvel (${error.message}).`
+            : "Não foi possível excluir o imóvel.",
+        );
         return;
       }
 
+      setIsSaving(false);
       setManagedProperties((currentProperties) => currentProperties.filter((item) => item.id !== property.id));
       setEditingDraft((currentDraft) => (currentDraft?.id === property.id ? null : currentDraft));
+      setPropertyPendingDeletion(null);
       setFormMessage("Imóvel excluído da sua carteira privada.");
       return;
     }
 
     setManagedProperties((currentProperties) => currentProperties.filter((item) => item.id !== property.id));
     setEditingDraft((currentDraft) => (currentDraft?.id === property.id ? null : currentDraft));
+    setPropertyPendingDeletion(null);
     setFormError(null);
     setFormMessage("Rascunho local removido deste navegador.");
   }
@@ -335,6 +386,18 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader mode={mode} supabaseReady={supabaseReady} dataSource={currentDataSource} hasLocalChanges={hasLocalChanges} sessionUserId={sessionUserId} />
+
+      <ConfirmationDialog
+        open={Boolean(propertyPendingDeletion)}
+        title={propertyPendingDeletion ? `Excluir ${propertyPendingDeletion.buildingName}?` : "Excluir imóvel?"}
+        description="O cadastro e os anexos privados deste imóvel serão removidos. Esta ação não pode ser desfeita."
+        confirmLabel="Excluir imóvel"
+        busy={isSaving}
+        onCancel={() => setPropertyPendingDeletion(null)}
+        onConfirm={() => {
+          if (propertyPendingDeletion) void deleteProperty(propertyPendingDeletion);
+        }}
+      />
 
       {hasLocalChanges ? (
         <Card className="border-cyan-300/20 bg-cyan-300/10">
@@ -351,11 +414,13 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       ) : null}
 
       {mode === "overview" ? (
-        <Overview summary={summary} priorities={priorities} contractAgenda={contractAgenda} />
+        hydrated
+          ? <Overview summary={summary} priorities={priorities} contractAgenda={contractAgenda} />
+          : <WorkspaceLoading label="Carregando resumo da carteira" />
       ) : null}
 
       {mode === "list" ? (
-        <PropertyList
+        hydrated ? <PropertyList
           activeFilter={activeFilter}
           filterOptions={filterOptions}
           filteredProperties={filteredProperties}
@@ -363,7 +428,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           formError={formError}
           formMessage={formMessage}
           isSaving={isSaving}
-          onDelete={deleteProperty}
+          onDelete={setPropertyPendingDeletion}
           onEdit={(property) => {
             setEditingDraft(draftFromProperty(property));
             setFormError(null);
@@ -377,11 +442,11 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           onDraftChange={setEditingDraft}
           onFilterChange={setActiveFilter}
           onSave={(draft, contractFile, options) => saveDraft(draft, "edit", contractFile, options)}
-        />
+        /> : <WorkspaceLoading label="Carregando seus imóveis" />
       ) : null}
 
       {mode === "new" ? (
-        <Card>
+        hydrated ? <Card>
           <CardHeader>
             <CardTitle>Novo imóvel</CardTitle>
             <CardDescription>
@@ -404,9 +469,26 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
               saveLabel={sessionUserId ? "Salvar no Supabase" : "Salvar rascunho"}
             />
           </CardContent>
-        </Card>
+        </Card> : <WorkspaceLoading label="Preparando o cadastro" />
       ) : null}
     </div>
+  );
+}
+
+function WorkspaceLoading({ label }: { label: string }) {
+  return (
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-busy="true" aria-label={label}>
+      {[0, 1, 2, 3].map((item) => (
+        <Card key={item}>
+          <CardContent className="space-y-3 p-5">
+            <div className="h-4 w-28 animate-pulse rounded-full bg-surface-muted" />
+            <div className="h-8 w-40 animate-pulse rounded-xl bg-surface-muted" />
+            <div className="h-3 w-32 animate-pulse rounded-full bg-surface-muted" />
+          </CardContent>
+        </Card>
+      ))}
+      <p className="sr-only">{label}</p>
+    </section>
   );
 }
 
@@ -631,7 +713,7 @@ function PropertyList({
             <span className="font-semibold text-slate-200">Fluxo sugerido:</span> abra Detalhes para revisar contrato e histórico, use Editar para corrigir dados rápidos e cadastre um novo imóvel pelo botão ao lado.
           </div>
         </div>
-        <ButtonLink href="/imoveis/novo" className="w-full sm:w-auto">Novo imóvel</ButtonLink>
+        <ButtonLink href="/imoveis/novo" className="w-full whitespace-nowrap sm:w-auto">Novo imóvel</ButtonLink>
       </CardHeader>
       <CardContent>
         {editingDraft ? (
@@ -691,7 +773,7 @@ function PropertyList({
         ) : null}
 
         {hasProperties ? (
-          <div className="grid gap-3 lg:hidden">
+          <div className="grid gap-3 2xl:hidden">
             {filteredProperties.map((property) => (
               <PropertyMobileCard key={property.id} property={property} isSaving={isSaving} onDelete={onDelete} onEdit={onEdit} />
             ))}
@@ -699,8 +781,8 @@ function PropertyList({
         ) : null}
 
         {hasProperties ? (
-        <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full min-w-[1180px] border-separate border-spacing-y-2 text-left text-sm">
+        <div className="hidden 2xl:block">
+          <table className="w-full table-fixed border-separate border-spacing-y-2 text-left text-sm">
             <thead className="text-slate-400">
               <tr>
                 <th className="px-4 py-2">Imóvel</th>
@@ -718,6 +800,8 @@ function PropertyList({
               {filteredProperties.map((property) => {
                 const status = primaryPropertyStatus(property);
                 const occupancy = propertyOccupancyStatus(property);
+                const alerts = getPropertyAlerts(property);
+                const statusReason = alerts.find((alert) => alert.severity === "danger") ?? alerts.find((alert) => alert.severity === "warning");
                 return (
                   <tr key={property.id} className="bg-slate-900/80 shadow-lg shadow-black/10">
                     <td className="rounded-l-2xl px-4 py-4 font-medium text-white">
@@ -725,7 +809,7 @@ function PropertyList({
                         {property.buildingName}
                       </Link>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {getPropertyAlerts(property).slice(0, 2).map((alert) => (
+                        {alerts.slice(0, 2).map((alert) => (
                           <Badge key={alert.label} variant={alert.severity}>{alert.label}</Badge>
                         ))}
                       </div>
@@ -739,7 +823,15 @@ function PropertyList({
                     <td className="px-4 py-4 text-slate-100">{formatCurrency(property.rentAmount)}</td>
                     <td className="px-4 py-4 text-slate-100">{formatCurrency(propertyExpenseTotal(property))}</td>
                     <td className="px-4 py-4 text-slate-300">{property.receivingBank ?? "—"}</td>
-                    <td className="px-4 py-4"><Badge variant={badgeVariantByStatus[status]}>{status}</Badge></td>
+                    <td className="px-4 py-4">
+                      <Badge
+                        variant={badgeVariantByStatus[status]}
+                        title={statusReason?.label}
+                        aria-label={statusReason ? `${status}: ${statusReason.label}` : status}
+                      >
+                        {status}
+                      </Badge>
+                    </td>
                     <td className="rounded-r-2xl px-4 py-4">
                       <div className="flex flex-wrap gap-2">
                         <ButtonLink href={`/imoveis/${encodeURIComponent(property.id)}`} variant="secondary">Detalhes</ButtonLink>
@@ -762,7 +854,9 @@ function PropertyList({
 function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property: PropertyRecord; isSaving: boolean; onDelete: (property: PropertyRecord) => void; onEdit: (property: PropertyRecord) => void }) {
   const status = primaryPropertyStatus(property);
   const occupancy = propertyOccupancyStatus(property);
-  const alerts = getPropertyAlerts(property).slice(0, 2);
+  const propertyAlerts = getPropertyAlerts(property);
+  const alerts = propertyAlerts.slice(0, 2);
+  const statusReason = propertyAlerts.find((alert) => alert.severity === "danger") ?? propertyAlerts.find((alert) => alert.severity === "warning");
 
   return (
     <div className="rounded-2xl bg-slate-900/80 p-4 ring-1 ring-white/10">
@@ -775,7 +869,13 @@ function PropertyMobileCard({ property, isSaving, onDelete, onEdit }: { property
         </div>
         <div className="flex flex-wrap gap-1 sm:flex-col sm:items-end sm:text-right">
           <Badge variant={badgeVariantByOccupancy[occupancy]}>{occupancy}</Badge>
-          <Badge variant={badgeVariantByStatus[status]}>{status}</Badge>
+          <Badge
+            variant={badgeVariantByStatus[status]}
+            title={statusReason?.label}
+            aria-label={statusReason ? `${status}: ${statusReason.label}` : status}
+          >
+            {status}
+          </Badge>
         </div>
       </div>
 
@@ -845,8 +945,10 @@ function PropertyForm({
   const [contractFileError, setContractFileError] = useState<string | null>(null);
   const [removeExistingContract, setRemoveExistingContract] = useState(false);
   const [isDraggingContract, setIsDraggingContract] = useState(false);
+  const [confirmExpiredContract, setConfirmExpiredContract] = useState(false);
 
   const adjustmentEnabled = adjustmentRule !== "none" && draft.hasAnnualAdjustment;
+  const expiredActiveContract = hasExpiredActiveContract(draft, getTodayDateString());
 
   function updateMonthlyDueDay(value: string) {
     onChange({ ...draft, paymentDueDate: buildMonthlyDueDate(value, draft.contractStartDate) });
@@ -860,7 +962,7 @@ function PropertyForm({
 
     const start = new Date(`${draft.contractStartDate}T00:00:00`);
     start.setMonth(start.getMonth() + parsedMonths);
-    return start.toISOString().slice(0, 10);
+    return getTodayDateString(start);
   }
 
   function updateAdjustmentRule(option: "none" | "contract-start-year" | "contract-end" | "custom-period" | "custom-date") {
@@ -909,7 +1011,7 @@ function PropertyForm({
       className="space-y-6"
       onSubmit={(event) => {
         event.preventDefault();
-        onSave(draft, contractFile, { removeExistingContract });
+        onSave(draft, contractFile, { removeExistingContract, confirmExpiredContract });
       }}
     >
       <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-sm text-cyan-50">
@@ -927,15 +1029,15 @@ function PropertyForm({
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
             <span>Imóvel <span className="text-emerald-300">*</span></span>
-            <Input value={draft.buildingName} onChange={(event) => onChange({ ...draft, buildingName: event.target.value })} placeholder="Ex.: Apt. Demo 101" />
+            <Input maxLength={PROPERTY_TEXT_LIMITS.buildingName} value={draft.buildingName} onChange={(event) => onChange({ ...draft, buildingName: event.target.value })} placeholder="Ex.: Apt. Demo 101" />
           </Label>
           <Label className="xl:col-span-2">
             Endereço/identificação
-            <Input value={draft.propertyAddress} onChange={(event) => onChange({ ...draft, propertyAddress: event.target.value })} placeholder="Rua, prédio, bloco ou referência" />
+            <Input maxLength={PROPERTY_TEXT_LIMITS.propertyAddress} value={draft.propertyAddress} onChange={(event) => onChange({ ...draft, propertyAddress: event.target.value })} placeholder="Rua, prédio, bloco ou referência" />
           </Label>
           <Label>
             Banco de recebimento
-            <Input value={draft.receivingBank} onChange={(event) => onChange({ ...draft, receivingBank: event.target.value })} placeholder="Ex.: Nubank" />
+            <Input maxLength={PROPERTY_TEXT_LIMITS.receivingBank} value={draft.receivingBank} onChange={(event) => onChange({ ...draft, receivingBank: event.target.value })} placeholder="Ex.: Nubank" />
           </Label>
         </div>
         <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
@@ -945,7 +1047,10 @@ function PropertyForm({
             <button
               type="button"
               aria-pressed={draft.isRented}
-              onClick={() => onChange({ ...draft, isRented: true })}
+              onClick={() => {
+                setConfirmExpiredContract(false);
+                onChange({ ...draft, isRented: true });
+              }}
               className={draft.isRented ? "rounded-xl bg-primary px-4 py-3 text-left text-sm font-semibold text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas" : "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink ring-1 ring-line outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"}
             >
               Alugado
@@ -954,7 +1059,10 @@ function PropertyForm({
             <button
               type="button"
               aria-pressed={!draft.isRented}
-              onClick={() => onChange({ ...draft, isRented: false, isRentPaid: false })}
+              onClick={() => {
+                setConfirmExpiredContract(false);
+                onChange({ ...draft, isRented: false, isRentPaid: false });
+              }}
               className={!draft.isRented ? "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink outline-none ring-1 ring-line focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas" : "rounded-xl bg-surface-muted px-4 py-3 text-left text-sm font-semibold text-ink ring-1 ring-line outline-none transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"}
             >
               Desalugado
@@ -972,11 +1080,11 @@ function PropertyForm({
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
             Inquilino
-            <Input value={draft.tenantName} onChange={(event) => onChange({ ...draft, tenantName: event.target.value })} placeholder="Opcional" />
+            <Input maxLength={PROPERTY_TEXT_LIMITS.tenantName} value={draft.tenantName} onChange={(event) => onChange({ ...draft, tenantName: event.target.value })} placeholder="Opcional" />
           </Label>
           <Label>
             Contato do inquilino
-            <Input value={draft.tenantContact} onChange={(event) => onChange({ ...draft, tenantContact: event.target.value })} placeholder="Telefone, e-mail ou WhatsApp" />
+            <Input maxLength={PROPERTY_TEXT_LIMITS.tenantContact} value={draft.tenantContact} onChange={(event) => onChange({ ...draft, tenantContact: event.target.value })} placeholder="Telefone, e-mail ou WhatsApp" />
           </Label>
           <Label>
             Dia do vencimento mensal
@@ -1015,12 +1123,45 @@ function PropertyForm({
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Label>
             Início do contrato
-            <Input className={dateInputClassName} type="date" value={draft.contractStartDate} onChange={(event) => onChange({ ...draft, contractStartDate: event.target.value })} />
+            <Input
+              className={dateInputClassName}
+              type="date"
+              value={draft.contractStartDate}
+              onChange={(event) => {
+                setConfirmExpiredContract(false);
+                onChange({ ...draft, contractStartDate: event.target.value });
+              }}
+            />
           </Label>
           <Label>
             Vencimento do contrato
-            <Input className={dateInputClassName} type="date" value={draft.contractEndDate} onChange={(event) => onChange({ ...draft, contractEndDate: event.target.value })} />
+            <Input
+              className={dateInputClassName}
+              type="date"
+              min={draft.contractStartDate || undefined}
+              value={draft.contractEndDate}
+              onChange={(event) => {
+                setConfirmExpiredContract(false);
+                onChange({ ...draft, contractEndDate: event.target.value });
+              }}
+            />
           </Label>
+          {expiredActiveContract ? (
+            <label className="flex items-start gap-3 rounded-xl border border-danger/25 bg-danger/10 px-3 py-3 text-sm text-ink md:col-span-2 xl:col-span-4">
+              <input
+                className="mt-0.5 size-4 accent-primary"
+                type="checkbox"
+                checked={confirmExpiredContract}
+                onChange={(event) => setConfirmExpiredContract(event.target.checked)}
+              />
+              <span>
+                <span className="block font-semibold text-danger">Este contrato já está vencido</span>
+                <span className="mt-1 block text-xs font-normal text-ink-muted">
+                  Confirme para manter o imóvel como alugado mesmo com o vencimento no passado.
+                </span>
+              </span>
+            </label>
+          ) : null}
           <Label className="md:col-span-2">
             Regra da data base do reajuste
             <select
@@ -1069,6 +1210,7 @@ function PropertyForm({
           <Label className="md:col-span-2">
             Índice/cláusula
             <Input
+              maxLength={PROPERTY_TEXT_LIMITS.rentAdjustmentIndex}
               value={draft.rentAdjustmentIndex}
               disabled={!adjustmentEnabled}
               onChange={(event) => onChange({ ...draft, hasAnnualAdjustment: true, rentAdjustmentIndex: event.target.value })}
@@ -1078,6 +1220,7 @@ function PropertyForm({
           <label className="flex flex-col gap-2 text-sm font-medium text-slate-300 md:col-span-2 xl:col-span-4">
             Observações contratuais
             <textarea
+              maxLength={PROPERTY_TEXT_LIMITS.contractNotes}
               value={draft.contractNotes}
               onChange={(event) => onChange({ ...draft, contractNotes: event.target.value })}
               placeholder="Ex.: cláusula de reajuste, prazo de renovação, condições especiais"

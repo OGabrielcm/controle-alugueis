@@ -41,8 +41,17 @@ Abra `http://localhost:3000`; a raiz redireciona para `/login`.
 npm run lint
 npm test
 npm run build
+npm run test:e2e
 npm run smoke:supabase
 ```
+
+### Playwright E2E
+
+- `npm run test:e2e` inicia o app local e valida as entradas públicas de autenticação no Chromium.
+- A suíte atual cobre o redirect `/` → `/login`, login, cadastro, recuperação de senha e o estado visível da configuração Supabase sem imprimir credenciais.
+- Traces, screenshots e vídeos são preservados somente em falhas e ficam ignorados pelo Git.
+- A jornada autenticada `login → dashboard → criar → editar → excluir` continua pendente até existir uma conta de teste descartável com dados fake; ausência de credenciais não é tratada como gate verde.
+- Antes de usar contratos ou dados reais, continue executando o smoke Supabase, a auditoria multiconta e o dogfood familiar manual.
 
 ## Supabase
 
@@ -81,6 +90,7 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 ### Migrações versionadas
 
 - `supabase/migrations/20260605_prepare_owner_rls.sql` prepara `owner_id`, índice e policies de dono autenticado.
+- `supabase/migrations/20260713_validate_contract_dates_and_text.sql` bloqueia novas datas contratuais invertidas e limita textos; constraints legadas ficam `NOT VALID` até a revisão manual dos registros antigos.
 - `supabase/schema.sql` reflete o estado esperado para ambientes novos.
 
 ### Anexos de contrato
@@ -118,7 +128,7 @@ A sequência abaixo prioriza fechar MVP familiar antes de deploy/polimento:
 
 2. **Validação Supabase/RLS/Storage com dados fake**
    - Validar Auth, CRUD real, exclusão, anexos privados, signed URL e isolamento entre duas contas.
-   - Rodar `npm run smoke:supabase` e `npm run audit:multiconta` quando o ambiente local estiver configurado.
+   - Rodar `npm run test:e2e`, `npm run smoke:supabase` e `npm run audit:multiconta` quando o ambiente local estiver configurado.
 
 3. **Dogfood familiar guiado**
    - Mercês testa com 2–3 imóveis fake-realistas.

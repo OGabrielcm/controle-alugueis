@@ -5,6 +5,7 @@ import { LogOut, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { getAuthenticatedUser } from "@/lib/auth-session";
 import { LOGIN_PATH, SIGNUP_PATH } from "@/lib/session-routes";
 import { supabase } from "@/lib/supabase";
 
@@ -12,19 +13,25 @@ export function SessionControl() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(Boolean(supabase));
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
 
     let mounted = true;
 
-    supabase.auth.getUser().then(({ data }) => {
+    getAuthenticatedUser(supabase.auth).then(({ user: authenticatedUser, error }) => {
       if (!mounted) return;
-      setUser(data.user);
+      setUser(authenticatedUser);
+      setSessionError(error);
+      setIsCheckingSession(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setSessionError(null);
+      setIsCheckingSession(false);
     });
 
     return () => {
@@ -40,6 +47,17 @@ export function SessionControl() {
     setUser(null);
     setIsSigningOut(false);
     router.replace(LOGIN_PATH);
+  }
+
+  if (isCheckingSession || sessionError) {
+    return (
+      <div className="mt-4 rounded-2xl border border-line bg-surface-muted p-3 text-sm text-ink lg:mt-3 lg:p-4">
+        <p className="font-semibold">{sessionError ? "Sessão indisponível" : "Carregando sessão"}</p>
+        <p className="mt-1 text-xs leading-5 text-ink-muted">
+          {sessionError ? "A conexão falhou, mas seus dados não foram tratados como ausentes." : "Confirmando seu acesso privado."}
+        </p>
+      </div>
+    );
   }
 
   if (!user) {
