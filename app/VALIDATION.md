@@ -12,6 +12,7 @@ Executar em `app/`:
 npm run lint
 npm test
 npm run build
+npm run test:e2e
 ```
 
 Use o package manager/lockfile já existente. Não instale nem atualize dependências apenas para rodar um check sem autorização.
@@ -22,12 +23,19 @@ Use o package manager/lockfile já existente. Não instale nem atualize dependê
 |---|---|---|
 | Markdown trivial | `git diff --check` + links/caminhos válidos | diff esperado |
 | Regra de domínio pura | lint + tests relevantes | casos limite e regressão |
-| UI/copy/layout | lint + tests + build | gate de `DESIGN.md`, screenshots/trace, temas/viewports aplicáveis |
-| Auth/CRUD/RLS/Storage | baseline + smoke/auditoria específica | duas contas, dados/arquivos fake, isolamento negativo, gate humano |
+| UI/copy/layout | baseline + spec/jornada Playwright afetada | gate de `DESIGN.md`, screenshots/trace, temas/viewports aplicáveis |
+| Auth/CRUD/RLS/Storage | baseline + E2E autenticado + smoke/auditoria específica | duas contas, dados/arquivos fake, isolamento negativo, gate humano |
 | Dependência/config | baseline + audit/review da mudança | motivo, alternativa, rollback e risco de supply chain |
 | Deploy/produção | baseline verde + readiness | preview manual, secrets seguros e aprovação humana separada |
 
 ## Checks específicos
+
+### Playwright
+
+- `e2e/public-auth.spec.ts` cobre as entradas públicas e deve passar sem credenciais de usuário.
+- A jornada autenticada `login → dashboard → criar → editar → excluir` exige conta descartável e dados fake.
+- Enquanto essa conta não existir, o gate autenticado é **bloqueado**, mesmo que o E2E público passe.
+- Traces, screenshots, vídeos e auth state podem conter contexto sensível; não versionar nem publicar sem revisão.
 
 Quando o ambiente seguro estiver configurado:
 
