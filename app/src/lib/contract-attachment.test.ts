@@ -4,6 +4,7 @@ import {
   CONTRACT_ATTACHMENTS_BUCKET,
   buildContractStoragePath,
   getContractFileValidationError,
+  getSignedUrlValidationError,
   normalizeContractFileName,
   normalizeContractStoragePath,
 } from "./contract-attachment";
@@ -81,5 +82,16 @@ describe("getContractFileValidationError", () => {
       getContractFileValidationError({ name: "contrato.pdf", type: "application/pdf", size: 10 * 1024 * 1024 + 1 }),
       "O documento precisa ter até 10MB.",
     );
+  });
+});
+
+describe("getSignedUrlValidationError", () => {
+  it("aceita URL HTTPS temporária", () => {
+    assert.equal(getSignedUrlValidationError("https://example.supabase.co/storage/v1/object/sign/file.pdf?token=test"), undefined);
+  });
+
+  it("rejeita resposta vazia ou URL insegura", () => {
+    assert.equal(getSignedUrlValidationError(undefined), "O Storage não retornou um link válido para o contrato.");
+    assert.equal(getSignedUrlValidationError("javascript:alert(1)"), "O Storage retornou um link inválido para o contrato.");
   });
 });

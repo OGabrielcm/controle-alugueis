@@ -55,9 +55,9 @@ export function ResetPasswordPanel() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle>Redefinir senha</CardTitle>
-            <CardDescription>Use esta tela depois de abrir o link de recuperação enviado pelo Supabase.</CardDescription>
+            <CardDescription>Use esta tela depois de abrir o link de recuperação enviado por e-mail.</CardDescription>
           </div>
-          <Badge variant={configured ? "success" : "warning"}>{configured ? "Supabase Auth pronto" : "Supabase sem env"}</Badge>
+          <Badge variant={configured ? "success" : "warning"}>{configured ? "Acesso disponível" : "Acesso indisponível"}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">

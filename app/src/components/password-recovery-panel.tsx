@@ -58,7 +58,7 @@ export function PasswordRecoveryPanel() {
             <CardTitle>{copy.title}</CardTitle>
             <CardDescription>{copy.description}</CardDescription>
           </div>
-          <Badge variant={configured ? "success" : "warning"}>{configured ? "Supabase Auth pronto" : "Supabase sem env"}</Badge>
+          <Badge variant={configured ? "success" : "warning"}>{configured ? "Acesso disponível" : "Acesso indisponível"}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">

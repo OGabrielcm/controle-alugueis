@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getLocalDateString } from "./date-only";
 
 export const sourceData = {
   label: "Aluguéis Prédios - Fevereiro.csv",
@@ -324,7 +325,7 @@ export function pendingReviewCount(items: PropertyRecord[]) {
   return items.filter((item) => item.isRented && (!item.contractEndDate || !item.tenantName)).length;
 }
 
-export function getPropertyAlerts(item: PropertyRecord): PropertyAlert[] {
+export function getPropertyAlerts(item: PropertyRecord, referenceDate = getLocalDateString()): PropertyAlert[] {
   const alerts: PropertyAlert[] = [];
 
   if (item.isRented && !item.tenantName) {
@@ -335,7 +336,15 @@ export function getPropertyAlerts(item: PropertyRecord): PropertyAlert[] {
     alerts.push({ label: "Sem data final de contrato", severity: "warning" });
   }
 
-  if (item.isRented && item.contractEndDate) {
+  const hasInconsistentContractDates = Boolean(
+    item.contractStartDate && item.contractEndDate && item.contractEndDate < item.contractStartDate,
+  );
+
+  if (item.isRented && hasInconsistentContractDates) {
+    alerts.push({ label: "Datas do contrato inconsistentes: vencimento anterior ao início", severity: "danger" });
+  } else if (item.isRented && item.contractEndDate && item.contractEndDate < referenceDate) {
+    alerts.push({ label: `Contrato vencido em ${formatDate(item.contractEndDate)}`, severity: "danger" });
+  } else if (item.isRented && item.contractEndDate) {
     alerts.push({ label: `Contrato vence em ${formatDate(item.contractEndDate)}`, severity: "info" });
   }
 
@@ -429,7 +438,7 @@ export function getPriorityGroups(items: PropertyRecord[]) {
 }
 
 export function summarizePortfolio(items: PropertyRecord[]): PortfolioSummary {
-  const alerts = items.flatMap(getPropertyAlerts);
+  const alerts = items.flatMap((item) => getPropertyAlerts(item));
   const grossRent = monthlyRevenue(items);
   const expensesTotal = items.reduce((sum, item) => sum + propertyExpenseTotal(item), 0);
   const condoTotal = monthlyCondoTotal(items);

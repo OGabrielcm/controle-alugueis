@@ -54,6 +54,13 @@ Campos observados:
 - Relatórios contábeis avançados.
 - App mobile nativo.
 
+## Evoluções condicionadas ao pós-MVP
+
+Estas funcionalidades só entram em planejamento/implementação depois de o MVP familiar ser validado com Auth, RLS, Storage privado, dados fake-realistas e dogfood guiado:
+
+- **Modelos de documentos por imóvel:** template padrão de contrato/documento com variáveis preenchidas a partir dos dados do imóvel, locador, inquilino e condições contratuais. A geração deve preservar revisão manual antes de qualquer uso ou assinatura.
+- **Galeria privada de imagens por imóvel:** múltiplas imagens, miniaturas e upload no Storage privado, com acesso protegido por `owner_id`; não usar URLs públicas para fotos do imóvel.
+
 ## Restrições técnicas
 Stack pedida: Node.js + Supabase + Vercel. Implementação inicial em Next.js com TypeScript, pronto para deploy na Vercel e persistência futura no Supabase.
 

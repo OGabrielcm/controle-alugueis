@@ -51,8 +51,17 @@ Abra `http://localhost:3000`; a raiz redireciona para `/login`.
 npm run lint
 npm test
 npm run build
+npm run test:e2e
 npm run smoke:supabase
 ```
+
+### Playwright E2E
+
+- `npm run test:e2e` inicia o app local e valida as entradas públicas de autenticação no Chromium.
+- A suíte atual cobre o redirect `/` → `/login`, login, cadastro, recuperação de senha e o estado visível da configuração Supabase sem imprimir credenciais.
+- Traces, screenshots e vídeos são preservados somente em falhas e ficam ignorados pelo Git.
+- A jornada autenticada `login → dashboard → criar → editar → excluir` continua pendente até existir uma conta de teste descartável com dados fake; ausência de credenciais não é tratada como gate verde.
+- Antes de usar contratos ou dados reais, continue executando o smoke Supabase, a auditoria multiconta e o dogfood familiar manual.
 
 ## Supabase
 
@@ -91,6 +100,7 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 ### Migrações versionadas
 
 - `supabase/migrations/20260605_prepare_owner_rls.sql` prepara `owner_id`, índice e policies de dono autenticado.
+- `supabase/migrations/20260713_validate_contract_dates_and_text.sql` bloqueia novas datas contratuais invertidas e limita textos; constraints legadas ficam `NOT VALID` até a revisão manual dos registros antigos.
 - `supabase/schema.sql` reflete o estado esperado para ambientes novos.
 
 ### Anexos de contrato
@@ -101,22 +111,23 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 - O upload registra o path privado do arquivo em `properties.contract_url` quando há sessão Supabase ativa.
 - A abertura do contrato gera uma signed URL temporária; não salve links temporários em docs, issues ou logs.
 - A remoção de contrato limpa o vínculo do imóvel e tenta remover o objeto privado do Storage.
+- A exclusão do imóvel é bloqueada enquanto houver qualquer anexo na pasta privada; remova o contrato separadamente primeiro.
 - Antes de usar documentos reais, valide manualmente RLS/Storage com duas contas e arquivos fake.
 
 ## Observações técnicas
 
 ### Auditoria de dependências
 
-Durante a instalação das dependências do design system, o `npm audit` reportou vulnerabilidades moderadas relacionadas à cadeia de dependências do Next/PostCSS.
+Em 2026-08-14, `npm audit --omit=dev --audit-level=high` reportou 4 vulnerabilidades altas em `nanoid` e na cadeia Next/PostCSS/Sharp. O caminho automático completo sugere Next `16.3.1`, fora da faixa atualmente declarada (`16.2.7`).
 
-A correção automática sugerida com `npm audit fix --force` não deve ser aplicada agora, porque ela tenta resolver o alerta com uma troca arriscada de versão do Next e pode quebrar o projeto.
+A correção automática com `npm audit fix --force` não deve ser aplicada nesta branch, porque mistura uma atualização relevante do framework com mudanças de Auth, Storage e prontidão do MVP.
 
 Decisão atual:
 
 - Não rodar `npm audit fix --force`.
-- Manter o desenvolvimento local normalmente.
-- Reavaliar o audit antes de qualquer deploy real.
-- Atualizar Next/PostCSS apenas por caminho seguro, seguido de `npm run lint` e `npm run build`.
+- Não tratar o audit como verde: ele permanece **bloqueado antes de deploy**.
+- Abrir uma atualização de dependências separada, revisar as advisories aplicáveis e testar Next `16.3.1` ou versão estável corrigida.
+- Nessa branch dedicada, rodar lint, unitários, TypeScript, build e Playwright antes de integrar.
 
 ## Próximos passos sugeridos
 
@@ -128,7 +139,7 @@ A sequência abaixo prioriza fechar MVP familiar antes de deploy/polimento:
 
 2. **Validação Supabase/RLS/Storage com dados fake**
    - Validar Auth, CRUD real, exclusão, anexos privados, signed URL e isolamento entre duas contas.
-   - Rodar `npm run smoke:supabase` e `npm run audit:multiconta` quando o ambiente local estiver configurado.
+   - Rodar `npm run test:e2e`, `npm run smoke:supabase` e `npm run audit:multiconta` quando o ambiente local estiver configurado.
 
 3. **Dogfood familiar guiado**
    - Mercês testa com 2–3 imóveis fake-realistas.

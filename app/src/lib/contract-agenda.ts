@@ -1,5 +1,6 @@
 import type { AlertSeverity, PropertyRecord } from "./rentals";
 import { formatDate } from "./rentals";
+import { getLocalDateString } from "./date-only";
 
 export type ContractAgendaKind =
   | "contract-expiration"
@@ -61,7 +62,7 @@ function daysBetween(referenceDate: string, targetDate: string) {
 }
 
 export function getTodayDateString(now = new Date()) {
-  return toDateOnlyString(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())));
+  return getLocalDateString(now);
 }
 
 export function getNextAnnualAdjustmentDate(baseDate: string, referenceDate: string) {

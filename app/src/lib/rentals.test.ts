@@ -106,4 +106,26 @@ describe("occupancy status", () => {
     assert.equal(summary.grossRent, rentedProperty.rentAmount);
     assert.equal(summary.pendingRent, rentedProperty.rentAmount);
   });
+
+  it("explica datas invertidas como alerta crítico", () => {
+    const alerts = getPropertyAlerts(
+      {
+        ...rentedProperty,
+        contractStartDate: "2030-01-01",
+        contractEndDate: "2020-01-01",
+      },
+      "2026-07-13",
+    );
+
+    assert.ok(alerts.some((alert) => alert.severity === "danger" && /inconsistentes/i.test(alert.label)));
+  });
+
+  it("explica contrato vencido como alerta crítico", () => {
+    const alerts = getPropertyAlerts(
+      { ...rentedProperty, contractEndDate: "2020-01-01" },
+      "2026-07-13",
+    );
+
+    assert.ok(alerts.some((alert) => alert.severity === "danger" && /vencido/i.test(alert.label)));
+  });
 });

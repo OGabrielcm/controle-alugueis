@@ -78,6 +78,31 @@ describe("buildPropertyMutationPayload", () => {
     assert.equal(payload.contract_url, null);
   });
 
+  it("rejeita datas invertidas mesmo quando a persistência é chamada sem formulário", () => {
+    assert.throws(
+      () => buildPropertyMutationPayload(
+        { ...draft, contractStartDate: "2030-01-01", contractEndDate: "2020-01-01" },
+        { userId, mode: "create", referenceDate: "2026-07-13" },
+      ),
+      /vencimento do contrato não pode ser anterior/i,
+    );
+  });
+
+  it("exige confirmação explícita para persistir contrato vencido como alugado", () => {
+    const expiredDraft = { ...draft, contractEndDate: "2026-06-01" };
+
+    assert.throws(
+      () => buildPropertyMutationPayload(expiredDraft, { userId, mode: "create", referenceDate: "2026-07-13" }),
+      /confirme o contrato vencido/i,
+    );
+    assert.doesNotThrow(() => buildPropertyMutationPayload(expiredDraft, {
+      userId,
+      mode: "create",
+      referenceDate: "2026-07-13",
+      confirmExpiredContract: true,
+    }));
+  });
+
   it("envia null para opcionais vazios e remove reajuste quando desativado", () => {
     const payload = buildPropertyMutationPayload(
       {

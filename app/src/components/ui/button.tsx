@@ -17,7 +17,7 @@ export function Button({ className, variant = "primary", ...props }: ButtonProps
   return (
     <button
       className={cn(
-        "inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50",
         variants[variant],
         className,
       )}
@@ -41,7 +41,7 @@ export function ButtonLink({
     <Link
       href={href}
       className={cn(
-        "inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary/40",
+        "inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary/40",
         variants[variant ?? "primary"],
         className,
       )}
