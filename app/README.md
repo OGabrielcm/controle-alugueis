@@ -17,6 +17,16 @@ O objetivo do projeto é evoluir primeiro o fluxo de produto e domínio, com fun
 - Cadastro, edição e exclusão de imóveis já usam sessão Supabase quando há usuário autenticado; sem sessão/configuração, o app mantém fallback local para desenvolvimento.
 - Anexos de contrato usam bucket privado, path interno e signed URL temporária para abertura.
 
+## Contratos do projeto
+
+- [`PRODUCT.md`](PRODUCT.md): público, problema, voz e intenção de produto.
+- [`DESIGN.md`](DESIGN.md): experiência, fluxo-assinatura, semântica visual e gate; tokens executáveis permanecem em `src/app/globals.css`.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): snapshot curto do funcionamento e trust boundaries atuais.
+- [`VALIDATION.md`](VALIDATION.md): matriz proporcional de checks e pacote de evidência.
+- [`AGENTS.md`](AGENTS.md): roteamento condicional desses contratos para agentes.
+
+Esses arquivos não substituem o PRD/SDD/ADR históricos da raiz. Eles mantêm o contexto atual da aplicação curto e carregável sob demanda; progresso permanece no Roadmap/issue tracker existente.
+
 ## Stack
 
 - Next.js 16 + React 19
