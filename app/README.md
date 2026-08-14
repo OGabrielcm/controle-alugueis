@@ -117,16 +117,16 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 
 ### Auditoria de dependências
 
-Durante a instalação das dependências do design system, o `npm audit` reportou vulnerabilidades moderadas relacionadas à cadeia de dependências do Next/PostCSS.
+Em 2026-08-14, `npm audit --omit=dev --audit-level=high` reportou 4 vulnerabilidades altas em `nanoid` e na cadeia Next/PostCSS/Sharp. O caminho automático completo sugere Next `16.3.1`, fora da faixa atualmente declarada (`16.2.7`).
 
-A correção automática sugerida com `npm audit fix --force` não deve ser aplicada agora, porque ela tenta resolver o alerta com uma troca arriscada de versão do Next e pode quebrar o projeto.
+A correção automática com `npm audit fix --force` não deve ser aplicada nesta branch, porque mistura uma atualização relevante do framework com mudanças de Auth, Storage e prontidão do MVP.
 
 Decisão atual:
 
 - Não rodar `npm audit fix --force`.
-- Manter o desenvolvimento local normalmente.
-- Reavaliar o audit antes de qualquer deploy real.
-- Atualizar Next/PostCSS apenas por caminho seguro, seguido de `npm run lint` e `npm run build`.
+- Não tratar o audit como verde: ele permanece **bloqueado antes de deploy**.
+- Abrir uma atualização de dependências separada, revisar as advisories aplicáveis e testar Next `16.3.1` ou versão estável corrigida.
+- Nessa branch dedicada, rodar lint, unitários, TypeScript, build e Playwright antes de integrar.
 
 ## Próximos passos sugeridos
 
