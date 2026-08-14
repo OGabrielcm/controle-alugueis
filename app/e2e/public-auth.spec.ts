@@ -34,13 +34,13 @@ test.describe("entradas públicas de autenticação", () => {
   test("expõe o estado da configuração sem revelar credenciais", async ({ page }) => {
     await page.goto("/login");
 
-    const status = page.getByText(/Supabase (Auth pronto|sem env)/);
+    const status = page.getByText(/Acesso (disponível|indisponível)/);
     await expect(status).toBeVisible();
 
     const submit = page.getByRole("button", { name: "Entrar" });
     await expect(submit).toBeVisible();
 
-    if ((await status.textContent()) === "Supabase sem env") {
+    if ((await status.textContent()) === "Acesso indisponível") {
       await expect(submit).toBeDisabled();
     } else {
       await expect(submit).toBeEnabled();

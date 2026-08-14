@@ -85,13 +85,13 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
     }
 
     if (!supabaseReady || !supabase) {
-      setErrorMessage("Configure o Supabase e o bucket de contratos antes de enviar documentos.");
+      setErrorMessage("O envio de documentos ainda não está disponível. Tente novamente mais tarde.");
       return;
     }
 
     setIsUploading(true);
     setErrorMessage(null);
-    setStatusMessage("Enviando contrato para o Supabase Storage...");
+    setStatusMessage("Enviando contrato com segurança...");
 
     try {
       const previousPath = contractPath;
@@ -108,7 +108,10 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         .single();
 
       if (updateError || !updatedProperty) {
-        await supabase.storage.from(CONTRACT_ATTACHMENTS_BUCKET).remove([result.path]);
+        const { error: rollbackError } = await supabase.storage.from(CONTRACT_ATTACHMENTS_BUCKET).remove([result.path]);
+        if (rollbackError) {
+          throw new Error("O contrato não foi vinculado e o arquivo enviado precisa de limpeza administrativa.");
+        }
         throw new Error(updateError?.message ?? "O imóvel não foi encontrado para registrar o contrato.");
       }
 
@@ -123,7 +126,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
       setSignedUrl(null);
       setStatusMessage(
         cleanupResult.error
-          ? `Novo contrato registrado, mas o arquivo anterior não pôde ser limpo do Storage (${cleanupResult.error.message}).`
+          ? "Novo contrato registrado, mas o arquivo anterior ainda precisa de limpeza. Não envie outro arquivo até revisar esta pendência."
           : "Contrato enviado e registrado no imóvel. O acesso será feito por link temporário.",
       );
     } catch (error) {
@@ -178,6 +181,11 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
     setStatusMessage("Removendo contrato do imóvel...");
 
     try {
+      const { error: storageError } = await supabase.storage.from(CONTRACT_ATTACHMENTS_BUCKET).remove([contractPath]);
+      if (storageError) {
+        throw new Error("O arquivo não foi removido. O contrato continua vinculado ao imóvel para permitir uma nova tentativa.");
+      }
+
       const { data: updatedProperty, error: updateError } = await supabase
         .from("properties")
         .update({ contract_url: null })
@@ -186,20 +194,15 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         .single();
 
       if (updateError || !updatedProperty) {
-        throw new Error(updateError?.message ?? "O imóvel não foi encontrado para remover o contrato.");
+        throw new Error("O arquivo foi removido, mas o cadastro ainda precisa ser atualizado. Tente remover novamente.");
       }
 
-      const { error: storageError } = await supabase.storage.from(CONTRACT_ATTACHMENTS_BUCKET).remove([contractPath]);
       removeLocalAttachment(propertyId);
       setContractPath(undefined);
       onContractChange?.(undefined);
       setSelectedFile(null);
       setSignedUrl(null);
-      setStatusMessage(
-        storageError
-          ? `Vínculo removido do imóvel, mas o arquivo não pôde ser limpo do Storage (${storageError.message}).`
-          : "Contrato removido do imóvel.",
-      );
+      setStatusMessage("Contrato removido do imóvel.");
       setConfirmRemoval(false);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Não foi possível remover o contrato.");
@@ -215,7 +218,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle>Anexo do contrato</CardTitle>
-            <CardDescription>Upload de PDF ou DOCX por imóvel usando Supabase Storage.</CardDescription>
+            <CardDescription>Envio privado de PDF ou DOCX vinculado a este imóvel.</CardDescription>
           </div>
           <Badge variant={contractPath ? "success" : "warning"}>{contractPath ? "com anexo" : "sem anexo"}</Badge>
         </div>
@@ -223,10 +226,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
       <CardContent className="space-y-4">
         <div className="rounded-2xl bg-slate-900/70 p-4 text-sm text-slate-400 ring-1 ring-white/10">
           <p>
-            Bucket esperado: <span className="font-mono text-slate-200">{CONTRACT_ATTACHMENTS_BUCKET}</span>
-          </p>
-          <p className="mt-2">
-            Limite atual: PDF ou DOCX de até 10MB. O envio registra o caminho privado no imóvel e gera link temporário só na abertura.
+            Limite atual: PDF ou DOCX de até 10MB. O documento fica privado e só recebe um link temporário quando você solicita a abertura.
           </p>
         </div>
 
@@ -276,7 +276,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
           }}
         >
           <span className="block font-medium text-slate-100">Arraste o contrato aqui ou selecione um arquivo</span>
-          <span className="mt-1 block text-xs text-slate-500">PDF ou DOCX será enviado para o Storage quando o Supabase estiver configurado.</span>
+          <span className="mt-1 block text-xs text-slate-500">O envio fica disponível quando o acesso privado está conectado.</span>
           <input
             type="file"
             accept={`${CONTRACT_ATTACHMENT_ALLOWED_MIME_TYPES.join(",")},.pdf,.docx`}
@@ -298,7 +298,7 @@ export function ContractAttachmentPanel({ propertyId, initialContractUrl, supaba
       <ConfirmationDialog
         open={confirmRemoval}
         title="Remover contrato anexado?"
-        description="O vínculo será apagado do imóvel e o arquivo privado será removido do Storage quando permitido. Esta ação não pode ser desfeita."
+        description="O arquivo privado e o vínculo com este imóvel serão removidos. Esta ação não pode ser desfeita."
         confirmLabel="Remover contrato"
         busy={isUploading}
         onCancel={() => setConfirmRemoval(false)}

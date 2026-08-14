@@ -111,6 +111,7 @@ A primeira versão funciona com dados mockados mesmo sem Supabase configurado. Q
 - O upload registra o path privado do arquivo em `properties.contract_url` quando há sessão Supabase ativa.
 - A abertura do contrato gera uma signed URL temporária; não salve links temporários em docs, issues ou logs.
 - A remoção de contrato limpa o vínculo do imóvel e tenta remover o objeto privado do Storage.
+- A exclusão do imóvel é bloqueada enquanto houver qualquer anexo na pasta privada; remova o contrato separadamente primeiro.
 - Antes de usar documentos reais, valide manualmente RLS/Storage com duas contas e arquivos fake.
 
 ## Observações técnicas

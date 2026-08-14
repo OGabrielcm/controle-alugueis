@@ -49,6 +49,12 @@ npm run audit:multiconta
 - Falha de pré-requisito é `bloqueado`, não `passou`.
 - Não apontar scripts para produção sem autorização explícita.
 
+### Storage e exclusão
+
+- A remoção do contrato deve preservar o vínculo quando o Storage falhar.
+- A exclusão do imóvel deve ser bloqueada enquanto houver qualquer anexo privado.
+- A jornada autenticada precisa provar upload, abertura, remoção e exclusão em tentativas separadas.
+
 ## Gate visual
 
 Para mudança visual relevante, validar as rotas/estados definidos em [`DESIGN.md`](DESIGN.md):

@@ -43,7 +43,7 @@ import {
   propertyFromDraft,
 } from "@/lib/property-draft";
 import { buildPropertyMutationPayload } from "@/lib/property-persistence";
-import { deletePropertyAndAttachments } from "@/lib/property-deletion";
+import { deletePropertyWhenNoAttachments } from "@/lib/property-deletion";
 import { shouldRedirectAfterPropertySave } from "@/lib/property-save-flow";
 import { mapSupabaseRow, propertyColumns, type PropertyDataSource, type SupabasePropertyRow } from "@/lib/property-repository";
 import { supabase } from "@/lib/supabase";
@@ -232,6 +232,23 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       }
 
       const current = draft.id ? managedProperties.find((property) => property.id === draft.id) : undefined;
+      const previousContractPath = normalizeContractStoragePath(current?.contractUrl);
+      let removedExistingContractBeforeSave = false;
+
+      if (options.removeExistingContract && !contractFile && previousContractPath) {
+        const { error: removeError } = await supabase.storage
+          .from(CONTRACT_ATTACHMENTS_BUCKET)
+          .remove([previousContractPath]);
+
+        if (removeError) {
+          setIsSaving(false);
+          setFormError("O contrato não foi removido. O vínculo foi preservado para permitir uma nova tentativa.");
+          return;
+        }
+
+        removedExistingContractBeforeSave = true;
+      }
+
       const payload = buildPropertyMutationPayload(draft, {
         userId: sessionUserId,
         mode,
@@ -247,13 +264,16 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
 
       if (error) {
         setIsSaving(false);
-        setFormError(`Não foi possível salvar no Supabase (${error.message}).`);
+        setFormError(
+          removedExistingContractBeforeSave
+            ? "O arquivo foi removido, mas o cadastro ainda precisa ser atualizado. Tente salvar novamente."
+            : "Não foi possível salvar o imóvel. Tente novamente.",
+        );
         return;
       }
 
       let saved = mapSupabaseRow(data as unknown as SupabasePropertyRow);
       let storageCleanupWarning: string | null = null;
-      const previousContractPath = normalizeContractStoragePath(current?.contractUrl);
 
       if (contractFile) {
         try {
@@ -277,7 +297,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
               .from(CONTRACT_ATTACHMENTS_BUCKET)
               .remove([previousContractPath]);
             if (cleanupError) {
-              storageCleanupWarning = `Imóvel e novo contrato salvos, mas o arquivo anterior não pôde ser limpo do Storage (${cleanupError.message}).`;
+              storageCleanupWarning = "Imóvel e novo contrato salvos, mas o arquivo anterior ainda precisa de limpeza administrativa.";
             }
           }
         } catch (uploadError) {
@@ -297,13 +317,6 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           setFormMessage("Você pode tentar anexar novamente na edição ou no detalhe do imóvel.");
           return;
         }
-      } else if (options.removeExistingContract && previousContractPath) {
-        const { error: cleanupError } = await supabase.storage
-          .from(CONTRACT_ATTACHMENTS_BUCKET)
-          .remove([previousContractPath]);
-        if (cleanupError) {
-          storageCleanupWarning = `Edição salva e vínculo removido, mas o arquivo não pôde ser limpo do Storage (${cleanupError.message}).`;
-        }
       }
 
       setIsSaving(false);
@@ -319,12 +332,12 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       setFormError(null);
       setFormMessage(
         storageCleanupWarning ?? (contractFile
-          ? "Imóvel e contrato salvos no Supabase."
+          ? "Imóvel e contrato salvos com segurança."
           : options.removeExistingContract
             ? "Edição salva e contrato removido do imóvel."
             : mode === "create"
-            ? "Imóvel salvo no Supabase com seu usuário como dono."
-            : "Edição salva no Supabase."),
+            ? "Imóvel salvo na sua conta privada."
+            : "Edição salva na sua conta privada."),
       );
       if (shouldRedirectAfterPropertySave(mode, { savedToSupabase: true })) {
         router.push("/imoveis");
@@ -356,7 +369,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       setFormMessage(null);
 
       try {
-        await deletePropertyAndAttachments({ property, supabaseClient: supabase });
+        await deletePropertyWhenNoAttachments({ property, supabaseClient: supabase });
       } catch (error) {
         setIsSaving(false);
         setPropertyPendingDeletion(null);
@@ -390,7 +403,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
       <ConfirmationDialog
         open={Boolean(propertyPendingDeletion)}
         title={propertyPendingDeletion ? `Excluir ${propertyPendingDeletion.buildingName}?` : "Excluir imóvel?"}
-        description="O cadastro e os anexos privados deste imóvel serão removidos. Esta ação não pode ser desfeita."
+        description="O cadastro será removido. Se houver contrato anexado, a exclusão será bloqueada até você removê-lo separadamente."
         confirmLabel="Excluir imóvel"
         busy={isSaving}
         onCancel={() => setPropertyPendingDeletion(null)}
@@ -404,7 +417,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           <CardContent className="flex flex-col gap-3 p-4 text-cyan-50 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-semibold">Rascunhos locais ativos</p>
-              <p className="text-sm text-cyan-100/75">As alterações estão salvas no navegador e ainda não foram persistidas no Supabase.</p>
+              <p className="text-sm text-cyan-100/75">As alterações estão salvas neste navegador e ainda não foram enviadas para sua conta.</p>
             </div>
             <Button variant="secondary" onClick={resetLocalChanges}>
               <RotateCcw size={16} /> Descartar rascunhos
@@ -450,7 +463,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
           <CardHeader>
             <CardTitle>Novo imóvel</CardTitle>
             <CardDescription>
-              Cadastre um imóvel privado. Com sessão ativa, o app salva no Supabase preenchendo owner_id com seu usuário.
+              Cadastre um imóvel privado. Com acesso ativo, o app salva os dados somente na sua conta.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -466,7 +479,7 @@ export function PropertyWorkspace({ mode, properties, dataSource, supabaseReady 
               }}
               onChange={setNewDraft}
               onSave={(draft, contractFile, options) => saveDraft(draft, "create", contractFile, options)}
-              saveLabel={sessionUserId ? "Salvar no Supabase" : "Salvar rascunho"}
+              saveLabel={sessionUserId ? "Salvar imóvel" : "Salvar rascunho"}
             />
           </CardContent>
         </Card> : <WorkspaceLoading label="Preparando o cadastro" />
@@ -481,9 +494,9 @@ function WorkspaceLoading({ label }: { label: string }) {
       {[0, 1, 2, 3].map((item) => (
         <Card key={item}>
           <CardContent className="space-y-3 p-5">
-            <div className="h-4 w-28 animate-pulse rounded-full bg-surface-muted" />
-            <div className="h-8 w-40 animate-pulse rounded-xl bg-surface-muted" />
-            <div className="h-3 w-32 animate-pulse rounded-full bg-surface-muted" />
+            <div className="h-4 w-28 rounded-full bg-surface-muted motion-safe:animate-pulse" />
+            <div className="h-8 w-40 rounded-xl bg-surface-muted motion-safe:animate-pulse" />
+            <div className="h-3 w-32 rounded-full bg-surface-muted motion-safe:animate-pulse" />
           </CardContent>
         </Card>
       ))}
@@ -531,9 +544,9 @@ function PageHeader({
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 md:text-base">{copy.description}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Badge variant={supabaseReady ? "success" : "warning"}>Supabase: {supabaseReady ? "configurado" : "sem .env"}</Badge>
-        <Badge variant={dataSource.status === "supabase" ? "success" : "warning"}>{dataSource.status}</Badge>
-        {sessionUserId ? <Badge variant="success">escrita privada</Badge> : null}
+        <Badge variant={supabaseReady ? "success" : "warning"}>{supabaseReady ? "Acesso conectado" : "Acesso indisponível"}</Badge>
+        <Badge variant={dataSource.status === "supabase" ? "success" : "warning"}>{dataSource.status === "supabase" ? "dados da sua conta" : "dados locais"}</Badge>
+        {sessionUserId ? <Badge variant="success">conta privada</Badge> : null}
         {hasLocalChanges ? <Badge variant="info">rascunho local</Badge> : null}
       </div>
     </header>

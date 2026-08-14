@@ -22,6 +22,11 @@ const navItems = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+
+  return <AppShellRoute key={pathname} pathname={pathname}>{children}</AppShellRoute>;
+}
+
+function AppShellRoute({ children, pathname }: { children: ReactNode; pathname: string }) {
   const router = useRouter();
   const [sessionStatus, setSessionStatus] = useState<"checking" | "authenticated" | "error">("checking");
   const [sessionError, setSessionError] = useState<string | null>(null);
@@ -76,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [authRoute, operationalRoute, router, sessionCheckAttempt]);
+  }, [authRoute, operationalRoute, pathname, router, sessionCheckAttempt]);
 
   if (authRoute) {
     return (
@@ -94,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (operationalRoute && sessionStatus === "checking") {
     return (
-      <div className="grid min-h-screen place-items-center bg-canvas px-5 text-center text-ink">
+      <div className="grid min-h-screen place-items-center bg-canvas px-5 text-center text-ink" role="status" aria-live="polite">
         <div>
           <p className="text-sm font-medium text-emerald-300">Validando sessão</p>
           <p className="mt-2 text-sm text-slate-400">Se não houver login ativo, você volta para a entrada privada.</p>
@@ -106,10 +111,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (operationalRoute && sessionStatus === "error") {
     return (
       <div className="grid min-h-screen place-items-center bg-canvas px-5 text-center text-ink">
-        <div className="max-w-md rounded-3xl border border-danger/25 bg-surface p-6 shadow-lg">
+        <div className="max-w-md rounded-3xl border border-danger/25 bg-surface p-6 shadow-lg" role="alert">
           <p className="font-semibold text-danger">Não foi possível validar sua sessão</p>
           <p className="mt-2 text-sm leading-6 text-ink-muted">
-            A conexão com o Supabase falhou. Seus dados não foram tratados como ausentes.
+            O serviço de acesso não respondeu. Seus dados não foram tratados como ausentes.
           </p>
           {sessionError ? <p className="mt-3 text-xs text-ink-muted" role="alert">{sessionError}</p> : null}
           <Button

@@ -11,7 +11,7 @@ import { getAuthenticatedUser } from "@/lib/auth-session";
 import { formatMonthlyDueDay } from "@/lib/monthly-due-date";
 import { findPropertyById } from "@/lib/property-detail";
 import { mapSupabaseRow, propertyColumns, type PropertyDataSource, type SupabasePropertyRow } from "@/lib/property-repository";
-import { deletePropertyAndAttachments } from "@/lib/property-deletion";
+import { deletePropertyWhenNoAttachments } from "@/lib/property-deletion";
 import {
   formatCurrency,
   formatDate,
@@ -146,7 +146,7 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
     setStatusMessage("Excluindo imóvel...");
 
     try {
-      await deletePropertyAndAttachments({ property, supabaseClient: supabase });
+      await deletePropertyWhenNoAttachments({ property, supabaseClient: supabase });
     } catch (error) {
       setIsDeleting(false);
       setConfirmDelete(false);
@@ -179,7 +179,7 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-slate-300">
-          {visibleStatus ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-cyan-50">{visibleStatus}</p> : null}
+          {visibleStatus ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-cyan-50" role="status" aria-live="polite">{visibleStatus}</p> : null}
           {requestFailed && errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-red-100" role="alert">{errorMessage}</p> : null}
           {!routeIsLoading && !visibleStatus && !requestFailed ? (
             <p className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
@@ -242,15 +242,15 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
       <ConfirmationDialog
         open={confirmDelete}
         title={`Excluir ${property.buildingName}?`}
-        description="O cadastro e os anexos privados deste imóvel serão removidos. Esta ação não pode ser desfeita."
+        description="O cadastro será removido. Se houver contrato anexado, a exclusão será bloqueada até você removê-lo separadamente."
         confirmLabel="Excluir imóvel"
         busy={isDeleting}
         onCancel={() => setConfirmDelete(false)}
         onConfirm={handleDeleteProperty}
       />
 
-      {statusMessage ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-sm text-cyan-50">{statusMessage}</p> : null}
-      {errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">{errorMessage}</p> : null}
+      {statusMessage ? <p className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 p-4 text-sm text-cyan-50" role="status" aria-live="polite">{statusMessage}</p> : null}
+      {errorMessage ? <p className="rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100" role="alert">{errorMessage}</p> : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Situação" value={occupancy} hint={property.isRented ? "Cobrança ativa" : "Sem contrato/cobrança ativa"} />
@@ -317,6 +317,7 @@ export function PropertyDetailClient({ routeId, fallbackProperties, fallbackData
         </Card>
 
         <ContractAttachmentPanel
+          key={property.id}
           propertyId={property.id}
           initialContractUrl={property.contractUrl}
           supabaseReady={supabaseReady}

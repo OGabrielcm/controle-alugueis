@@ -3,10 +3,9 @@ import { CONTRACT_ATTACHMENTS_BUCKET } from "./contract-attachment";
 
 export type PropertyForDeletion = {
   id: string;
-  contractUrl?: string;
 };
 
-export async function deletePropertyAndAttachments({
+export async function deletePropertyWhenNoAttachments({
   property,
   supabaseClient,
 }: {
@@ -21,29 +20,12 @@ export async function deletePropertyAndAttachments({
     throw new Error(`Não foi possível verificar os anexos antes da exclusão (${listError.message}).`);
   }
 
-  const { data: updatedProperty, error: unlinkError } = await supabaseClient
-    .from("properties")
-    .update({ contract_url: null })
-    .eq("id", property.id)
-    .select("id")
-    .single();
+  const attachmentCount = (files ?? []).filter(
+    (file) => file.name && file.name !== ".emptyFolderPlaceholder",
+  ).length;
 
-  if (unlinkError || !updatedProperty) {
-    throw new Error(unlinkError?.message ?? "O imóvel não foi encontrado para exclusão.");
-  }
-
-  const attachmentPaths = (files ?? [])
-    .filter((file) => file.name && file.name !== ".emptyFolderPlaceholder")
-    .map((file) => `${property.id}/${file.name}`);
-
-  if (attachmentPaths.length > 0) {
-    const { error: removeError } = await supabaseClient.storage
-      .from(CONTRACT_ATTACHMENTS_BUCKET)
-      .remove(attachmentPaths);
-
-    if (removeError) {
-      throw new Error(`O vínculo foi removido, mas os arquivos impediram a exclusão (${removeError.message}).`);
-    }
+  if (attachmentCount > 0) {
+    throw new Error("Remova os contratos anexados antes de excluir o imóvel. Nenhum arquivo foi apagado.");
   }
 
   const { data: deletedProperty, error: deleteError } = await supabaseClient

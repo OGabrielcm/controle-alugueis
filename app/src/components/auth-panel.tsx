@@ -114,7 +114,7 @@ export function AuthPanel({ mode }: AuthPanelProps) {
             <CardTitle>{copy.title}</CardTitle>
             <CardDescription>{copy.description}</CardDescription>
           </div>
-          <Badge variant={configured ? "success" : "warning"}>{configured ? "Supabase Auth pronto" : "Supabase sem env"}</Badge>
+          <Badge variant={configured ? "success" : "warning"}>{configured ? "Acesso disponível" : "Acesso indisponível"}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -216,8 +216,8 @@ export function AuthPanel({ mode }: AuthPanelProps) {
           ) : null}
         </form>
 
-        {error ? <p className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger">{error}</p> : null}
-        {message ? <p className="rounded-xl border border-primary/20 bg-primary-soft p-3 text-sm text-primary">{message}</p> : null}
+        {error ? <p className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger" role="alert">{error}</p> : null}
+        {message ? <p className="rounded-xl border border-primary/20 bg-primary-soft p-3 text-sm text-primary" role="status" aria-live="polite">{message}</p> : null}
 
         <div className="rounded-2xl border border-line bg-surface-muted p-4 text-sm leading-6 text-ink-muted">
           <p className="font-semibold text-ink">Fluxo separado e protegido</p>
